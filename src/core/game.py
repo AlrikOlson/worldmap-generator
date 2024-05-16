@@ -2,6 +2,7 @@
 import pygame
 import threading
 import numpy as np
+import torch
 from procedural.map_generator import MapGenerator  # Relative import
 
 class Game:
@@ -64,58 +65,61 @@ class Game:
     def update_world_surface(self):
         try:
             # Ensure the `self.world` tensor matches the expected shape
+            print("Starting update_world_surface")
+            print(f"self.world dtype: {self.world.dtype}")
+            print(f"self.world shape: {self.world.shape}")
             if self.world.shape != (1280, 720):
                 raise ValueError("Generated world shape does not match surface dimensions")
 
             # Convert the `self.world` tensor to a numpy array and ensure it's properly shaped
             world_np = self.world.cpu().numpy()
+            print(f"world_np shape: {world_np.shape}, dtype: {world_np.dtype}")
             
-            # Initialize color array with the shape (width, height, 3)
-            color_array = np.zeros((1280, 720, 3), dtype=np.uint8)  # Note: width, height, 3
-            
-            for x in range(1280):
-                for y in range(720):
-                    value = world_np[x, y]
-                    color = self.get_color(value)
-                    if not all(0 <= c <= 255 for c in color):  # Ensure color values are within valid range
-                        raise ValueError(f"Invalid color value {color} at ({x}, {y})")
-                    color_array[x, y] = color  # Note: access pattern corrected for debugging
+            color_array = self.generate_color_array(world_np)
+            print(f"color_array shape: {color_array.shape}, dtype: {color_array.dtype}")
 
-            print(f"world_surface size: {self.world_surface.get_size()}")
-            print(f"color_array.shape: {color_array.shape}")
-
-            # Efficiently blit the color array to the world surface using PixelArray
-            pixel_array = pygame.PixelArray(self.world_surface)
-            for x in range(1280):
-                for y in range(720):
-                    pixel_array[x, y] = tuple(color_array[x, y])
-            del pixel_array  # Unlock the surface by deleting the PixelArray reference
+            # Efficiently blit the color array to the world surface
+            pygame.surfarray.blit_array(self.world_surface, color_array)
         except Exception as e:
             # Output detailed information about the exception and the relevant data
             print(f"Exception occurred: {e}")
-            print(f"self.world.shape: {self.world.shape}")
+            if hasattr(self, 'world'):
+                print(f"self.world.shape: {self.world.shape}")
             print(f"world_np.shape: {world_np.shape} -- dtype: {world_np.dtype}")
-            print(f"color_array.shape: {color_array.shape} -- dtype: {color_array.dtype}")
-            if 'color' in locals():
-                print(f"Invalid color value encountered: {color}")
+            if 'color_array' in locals():
+                print(f"color_array.shape: {color_array.shape} -- dtype: {color_array.dtype}")
             raise  # Re-raise the exception after printing the details
 
-    def get_color(self, value):
-        # Adjusted biomes based on elevation
-        if value < 0.15:
-            return (0, 0, 128)  # Deep water
-        elif 0.15 <= value < 0.25:
-            return (0, 128, 255)  # Shallow water
-        elif 0.25 <= value < 0.3:
-            return (240, 230, 140)  # Beach
-        elif 0.3 <= value < 0.55:
-            return (34, 139, 34)  # Grass
-        elif 0.55 <= value < 0.75:
-            return (60, 179, 113)  # Forest
-        elif 0.75 <= value < 0.85:
-            return (160, 82, 45)  # Mountain
-        else:
-            return (255, 250, 250)  # Snow
+    def generate_color_array(self, world_np):
+        print("Starting generate_color_array")
+        # Define a 3D array where the third dimension is the RGB channels
+        color_array = np.zeros((1280, 720, 3), dtype=np.uint8)
+        print(f"Initialized color_array shape: {color_array.shape}, dtype: {color_array.dtype}")
+
+        # Define thresholds and colors
+        thresholds = [0.15, 0.25, 0.3, 0.55, 0.75, 0.85]
+        colors = [
+            (0, 0, 128),      # Deep water
+            (0, 128, 255),    # Shallow water
+            (240, 230, 140),  # Beach
+            (34, 139, 34),    # Grass
+            (60, 179, 113),   # Forest
+            (160, 82, 45),    # Mountain
+            (255, 250, 250)   # Snow
+        ]
+
+        # Use numpy digitize to efficiently map values to biomes
+        indices = np.digitize(world_np.flatten(), thresholds).reshape((1280, 720))
+        print(f"indices shape: {indices.shape}, dtype: {indices.dtype}")
+
+        for i, color in enumerate(colors):
+            color_array[indices == i] = color
+            print(f"Assigned color {color} to {np.sum(indices == i)} pixels")
+
+        color_array = color_array.transpose(1, 0, 2)
+        print(f"Transposed color_array shape: {color_array.shape}, dtype: {color_array.dtype}")
+
+        return color_array
 
 # Usage example
 if __name__ == "__main__":
