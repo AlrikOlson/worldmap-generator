@@ -3,6 +3,7 @@ import random
 import numpy as np
 from scipy.ndimage import gaussian_filter
 
+
 class MapGenerator:
     def __init__(self, width, height, scale=100.0, octaves=6, persistence=0.5, lacunarity=2.0, seed=None, device='cuda'):
         self.width = width
@@ -13,9 +14,7 @@ class MapGenerator:
         self.lacunarity = lacunarity
         self.seed = seed if seed is not None else random.randint(0, 1000)
         self.device = torch.device(device)
-        self.noise_generator = PerlinNoiseGenerator(
-            width, height, scale, octaves, persistence, lacunarity, self.device
-        )
+        self.noise_generator = PerlinNoiseGenerator(width, height, scale, octaves, persistence, lacunarity, self.device)
         self.geological_processor = GeologicalProcessor(width, height, self.device)
         self.erosion_processor = ErosionProcessor(width, height, self.device)
 
@@ -99,7 +98,7 @@ class PerlinNoiseGenerator:
         return t * t * t * (t * (t * 6 - 15) + 10)
 
     def gradient(self, x, y):
-        random = torch.sin(x * 12.9898 + y * 78.233) * 43758.5453
+        random = torch.sin(x * 12.9898 + y * 78.233) * 43758.5453123
         return random.frac() * 2 - 1
 
 
