@@ -33,6 +33,8 @@ class MapGenerator:
             progress_callback(40.0)  # Progress update after initial noise generation
 
         world = self.apply_geological_features(world, progress_callback)
+        # Apply hydraulic erosion simulation
+        world = self.apply_hydraulic_erosion(world, progress_callback)
         return world
 
     def generate_perlin_noise(self, width, height, scale, octaves, persistence, lacunarity):
@@ -176,3 +178,53 @@ class MapGenerator:
         if y < self.height - 1:
             neighbors.append((x, y + 1))
         return neighbors
+
+    
+    def apply_hydraulic_erosion(self, world, progress_callback=None):
+        # Implement hydraulic erosion simulation on the GPU
+        erosion_iterations = 10
+        erosion_rate = 0.01
+        deposition_rate = 0.01
+        evaporation_rate = 0.1
+        water_level = 0.1
+
+        for i in range(erosion_iterations):
+            # Calculate water flow and velocity using finite differences
+            water_flow = self.calculate_water_flow(world, water_level)
+            velocity = self.calculate_velocity(water_flow)
+
+            # Update the terrain height based on erosion and deposition
+            erosion = erosion_rate * velocity
+            deposition = deposition_rate * velocity
+            world -= erosion
+            world += deposition
+
+            # Update the water level based on evaporation
+            water_level -= evaporation_rate * water_level
+
+            if progress_callback:
+                progress_callback(70.0 + i / erosion_iterations * 30.0)  # Assuming hydraulic erosion is the last 30% of the work
+
+        return world
+
+    def calculate_water_flow(self, world, water_level):
+        # Calculate water flow using finite differences
+        kernel = torch.tensor([
+            [0, 1, 0],
+            [1, -4, 1],
+            [0, 1, 0]
+        ], device=self.device, dtype=torch.float32)
+
+        water_flow = torch.nn.functional.conv2d(world.unsqueeze(0).unsqueeze(0), kernel.view(1, 1, 3, 3), padding=1)
+        water_flow = water_flow.squeeze(0).squeeze(0)
+        water_flow *= water_level
+
+        return water_flow
+
+    def calculate_velocity(self, water_flow):
+        # Calculate velocity based on water flow
+        velocity = torch.zeros_like(water_flow)
+        velocity[:-1, :] = torch.sqrt(water_flow[:-1, :] ** 2 + water_flow[:-1, :-1] ** 2)
+        velocity[-1, :] = velocity[-2, :]  # Copy the last row from the previous row
+        velocity[:, -1] = velocity[:, -2]  # Copy the last column from the previous column
+        return velocity
