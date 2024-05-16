@@ -116,7 +116,6 @@ class GeologicalProcessor:
 
     def apply_geological_features(self, world, progress_callback=None):
         world = self.add_eroded_features(world, progress_callback)
-        world = self.add_rivers(world, progress_callback)
         return world
 
     def add_eroded_features(self, world, progress_callback=None):
@@ -141,83 +140,6 @@ class GeologicalProcessor:
         eroded_world -= 0.01 * (neighbors > 0).float()
         
         return eroded_world
-
-    def add_rivers(self, world, progress_callback=None):
-        num_rivers = 20
-        river_starts = self.find_edge_points(world, num_rivers)
-
-        for i, (start_x, start_y) in enumerate(river_starts):
-            self.carve_river(world, start_x, start_y)
-            if progress_callback:
-                progress_callback(70.0 + (i + 1) / num_rivers * 30.0)  # Rivers are the remaining 30%
-        return world
-
-    def find_edge_points(self, world, num_points):
-        edge_points = []
-        world_cpu = world.cpu().numpy()
-
-        for _ in range(num_points):
-            edge = random.choice(['top', 'bottom', 'left', 'right'])
-            if edge == 'top':
-                x = random.randint(0, self.width - 1)
-                y = 0
-            elif edge == 'bottom':
-                x = random.randint(0, self.width - 1)
-                y = self.height - 1
-            elif edge == 'left':
-                x = 0
-                y = random.randint(0, self.height - 1)
-            else:  # 'right'
-                x = self.width - 1
-                y = random.randint(0, self.height - 1)
-
-            edge_points.append((x, y))
-
-        return edge_points
-
-    def carve_river(self, world, x, y):
-        directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-        river_length = 200
-        prev_direction = None
-
-        for _ in range(river_length):
-            if x < 0 or x >= self.width or y < 0 or y >= self.height:
-                break
-
-            world[x, y] = 0.0
-
-            # Calculate the slope in each direction
-            slopes = []
-            for dx, dy in directions:
-                nx, ny = x + dx, y + dy
-                if 0 <= nx < self.width and 0 <= ny < self.height:
-                    slope = world[nx, ny] - world[x, y]
-                    slopes.append((slope, (dx, dy)))
-
-            # Choose the direction with the steepest downward slope
-            max_slope, max_direction = max(slopes, key=lambda x: x[0], default=(0, (0, 0)))
-
-            if prev_direction is None or random.random() < 0.1:
-                prev_direction = max_direction
-            else:
-                # Filter directions to consider only the previous direction and the steepest direction
-                valid_directions = [d for d in slopes if d[1] == prev_direction or d[1] == max_direction]
-                _, prev_direction = max(valid_directions, key=lambda x: x[0], default=(0, (0, 0)))
-
-            x += prev_direction[0]
-            y += prev_direction[1]
-
-    def get_neighbors(self, world, x, y):
-        neighbors = []
-        if x > 0:
-            neighbors.append((x - 1, y))
-        if x < self.width - 1:
-            neighbors.append((x + 1, y))
-        if y > 0:
-            neighbors.append((x, y - 1))
-        if y < self.height - 1:
-            neighbors.append((x, y + 1))
-        return neighbors
 
 
 class ErosionProcessor:
