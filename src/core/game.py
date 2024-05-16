@@ -198,14 +198,13 @@ class Game:
 
         thresholds = torch.tensor([0.01, 0.02, 0.03, 0.1, 0.6, 0.7, 0.8], device=device)
         colors = torch.tensor([
-            [0, 0, 128],     # Deep Water
-            [0, 128, 255],   # Shallow Water
-            [240, 230, 140], # Sand
-            [34, 139, 34],   # Grass
-            [60, 179, 113],  # Forest
-            [160, 82, 45],   # Mountain
-            [255, 250, 250], # Snow
-            [128, 128, 128], # Rock
+            [0, 0, 128],
+            [0, 128, 255],
+            [240, 230, 140],
+            [34, 139, 34],
+            [60, 179, 113],
+            [160, 82, 45],
+            [255, 250, 250]
         ], dtype=torch.float32, device=device)
 
         color_array = torch.zeros((self.map_width, self.map_height, 3), dtype=torch.uint8, device=device)
