@@ -93,7 +93,7 @@ class Game:
     def generate_color_array(self, world_np):
         print("Starting generate_color_array")
         # Define a 3D array where the third dimension is the RGB channels
-        color_array = np.zeros((1280, 720, 3), dtype=np.uint8)
+        color_array = np.zeros((720, 1280, 3), dtype=np.uint8)  # Corrected dimensions
         print(f"Initialized color_array shape: {color_array.shape}, dtype: {color_array.dtype}")
 
         # Define thresholds and colors
@@ -113,11 +113,10 @@ class Game:
         print(f"indices shape: {indices.shape}, dtype: {indices.dtype}")
 
         for i, color in enumerate(colors):
-            color_array[indices == i] = color
+            color_array[indices.T == i] = color  # Access pattern updated
             print(f"Assigned color {color} to {np.sum(indices == i)} pixels")
 
-        color_array = color_array.transpose(1, 0, 2)
-        print(f"Transposed color_array shape: {color_array.shape}, dtype: {color_array.dtype}")
+        print(f"Final color_array shape: {color_array.shape}, dtype: {color_array.dtype}")
 
         return color_array
 
