@@ -92,92 +92,57 @@ class Game:
 
     def generate_color_array(self, world_np):
         print("Starting generate_color_array")
-        # Define a 3D array where the third dimension is the RGB channels
-        color_array = np.zeros((1280, 720, 3), dtype=np.uint8)  # Corrected dimensions
-        print(f"Initialized color_array shape: {color_array.shape}, dtype: {color_array.dtype}")
+        
+        # Convert the numpy array to a torch tensor and move it to the GPU if available
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        world_tensor = torch.from_numpy(world_np).to(device)
 
         # Define thresholds and colors, adjusted for smoother transitions
-        deep_water_threshold = 0.2
-        shallow_water_threshold = 0.35
-        beach_threshold = 0.45
-        grass_threshold = 0.55
-        forest_threshold = 0.65
-        mountain_threshold = 0.75
-        snow_threshold = 0.85
+        thresholds = torch.tensor([0.2, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85], device=device)
+        colors = torch.tensor([
+            [0, 0, 128],     # Deep water
+            [0, 128, 255],   # Shallow water
+            [240, 230, 140], # Beach
+            [34, 139, 34],   # Grass
+            [60, 179, 113],  # Forest
+            [160, 82, 45],   # Mountain
+            [255, 250, 250], # Snow
+            [128, 128, 128], # Rocky shoreline (for GPU-only implementation, could be managed here or later)
+        ], dtype=torch.float32, device=device)
+        
+        # Initialize a tensor for the color array on the GPU
+        color_array = torch.zeros((1280, 720, 3), dtype=torch.uint8, device=device)
 
-        colors = [
-            (0, 0, 128),      # Deep water
-            (0, 128, 255),    # Shallow water
-            (240, 230, 140),  # Beach
-            (34, 139, 34),    # Grass
-            (60, 179, 113),   # Forest
-            (160, 82, 45),    # Mountain
-            (255, 250, 250),  # Snow
-            (128, 128, 128),  # Rocky shoreline
-        ]
-
+        # Function to blend colors
         def blend_colors(color1, color2, factor):
-            return tuple(
-                int(c1 * (1 - factor) + c2 * factor)
-                for c1, c2 in zip(color1, color2)
-            )
+            return (color1 * (1 - factor) + color2 * factor).to(dtype=torch.uint8)
 
-        def smooth_elevation(elevations, x, y, size=3):
-            neighbors = elevations[max(0, x-size):min(elevations.shape[0], x+size+1), max(0, y-size):min(elevations.shape[1], y+size+1)]
-            return np.mean(neighbors)
+        # Function to smooth elevation
+        def smooth_elevation(elevations, kernel_size=3):
+            padding = kernel_size // 2
+            padded_elevations = torch.nn.functional.pad(elevations.unsqueeze(0).unsqueeze(0), (padding, padding, padding, padding), mode='replicate').squeeze()
+            kernel = torch.ones((1, 1, kernel_size, kernel_size), device=device) / (kernel_size * kernel_size)
+            smoothed = torch.nn.functional.conv2d(padded_elevations.unsqueeze(0).unsqueeze(0), kernel).squeeze()
+            return smoothed
 
-        # Pad world_np to handle edge cases
-        padded_world = np.pad(world_np, pad_width=1, mode='edge')
+        smoothed_tensor = smooth_elevation(world_tensor, 3)
 
-        for x in range(1, world_np.shape[0] + 1):
-            for y in range(1, world_np.shape[1] + 1):
-                elevation = padded_world[x, y]
-                smoothed_elevation = smooth_elevation(padded_world, x, y)
+        for i in range(len(thresholds) - 1):
+            lower_threshold = thresholds[i]
+            upper_threshold = thresholds[i + 1]
+            mask = (smoothed_tensor >= lower_threshold) & (smoothed_tensor < upper_threshold)
+            blend_factor = (smoothed_tensor[mask] - lower_threshold) / (upper_threshold - lower_threshold)
+            color1 = colors[i]
+            color2 = colors[i+1]
+            blended_colors = blend_colors(color1, color2, blend_factor.unsqueeze(-1))
+            color_array[mask] = blended_colors
 
-                if smoothed_elevation < deep_water_threshold:
-                    color_array[x-1, y-1] = colors[0]  # Deep water
-                elif smoothed_elevation < shallow_water_threshold:
-                    # Gradient from shallow water to deep water
-                    blend_factor = (smoothed_elevation - deep_water_threshold) / (shallow_water_threshold - deep_water_threshold)
-                    shallow_water_color = blend_colors(colors[0], colors[1], blend_factor)
-                    color_array[x-1, y-1] = shallow_water_color
-                elif smoothed_elevation < beach_threshold:
-                    # Shoreline check
-                    neighbors = padded_world[x-1:x+2, y-1:y+2]
-                    if np.any(neighbors < shallow_water_threshold):
-                        # Identify if it is an inner shoreline (lake)
-                        is_lake = np.all(neighbors >= deep_water_threshold)
-                        if is_lake and np.random.rand() < 0.3:  # Lower probability for rocky shorelines at this threshold
-                            color_array[x-1, y-1] = colors[7]  # Rocky shoreline
-                        else:
-                            # Vary the depth and size of the beach for outside shorelines
-                            beach_depth = (smoothed_elevation - shallow_water_threshold) / (beach_threshold - shallow_water_threshold)
-                            blend_factor = (smoothed_elevation - shallow_water_threshold) / (beach_threshold - shallow_water_threshold)
-                            beach_color = blend_colors(colors[2], colors[3], blend_factor)
-                            color_array[x-1, y-1] = beach_color
-                    else:
-                        color_array[x-1, y-1] = colors[3]  # Grass (instead of sand if not near water)
-                elif smoothed_elevation < grass_threshold:
-                    blend_factor = (smoothed_elevation - beach_threshold) / (grass_threshold - beach_threshold)
-                    grass_color = blend_colors(colors[3], colors[4], blend_factor)
-                    color_array[x-1, y-1] = grass_color
-                elif smoothed_elevation < forest_threshold:
-                    blend_factor = (smoothed_elevation - grass_threshold) / (forest_threshold - grass_threshold)
-                    forest_color = blend_colors(colors[4], colors[5], blend_factor)
-                    modified_forest_color = tuple(c + np.random.randint(-10, 10) for c in forest_color)  # Adding variation
-                    color_array[x-1, y-1] = modified_forest_color
-                elif smoothed_elevation < mountain_threshold:
-                    # Determine rocky shorelines for higher elevations, further from water
-                    if smoothed_elevation >= grass_threshold - 0.1 and np.random.rand() < 0.1:  # Lower probability for rocky shorelines
-                        color_array[x-1, y-1] = colors[7]  # Rocky shoreline
-                    else:
-                        mountain_color = colors[5]
-                        modified_mountain_color = tuple(c + np.random.randint(-10, 10) for c in mountain_color)  # Adding variation
-                        color_array[x-1, y-1] = modified_mountain_color
-                else:
-                    snow_color = colors[6]
-                    modified_snow_color = tuple(c + np.random.randint(-10, 10) for c in snow_color)  # Adding variation
-                    color_array[x-1, y-1] = modified_snow_color
+        # Handle last threshold separately (snow color)
+        mask = smoothed_tensor >= thresholds[-1]
+        color_array[mask] = colors[-1].to(dtype=torch.uint8)
+
+        # Move the color array back to the CPU
+        color_array = color_array.cpu().numpy()
 
         print(f"Final color_array shape: {color_array.shape}, dtype: {color_array.dtype}")
 
