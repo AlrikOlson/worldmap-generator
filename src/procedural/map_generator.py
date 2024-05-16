@@ -28,15 +28,13 @@ class MapGenerator:
         
         world = self.noise_generator.generate_perlin_noise()
         world = (world + 1) / 2  # Normalize the noise
-        world = torch.tensor(gaussian_filter(world.cpu().numpy(), sigma=1)).to(self.device)
         
         if progress_callback:
             progress_callback(40.0)
         
         world = self.geological_processor.apply_geological_features(world, progress_callback)
-        world = torch.tensor(gaussian_filter(world.cpu().numpy(), sigma=2)).to(self.device)
         world = self.erosion_processor.apply_hydraulic_erosion(world, progress_callback)
-        world = torch.tensor(gaussian_filter(world.cpu().numpy(), sigma=4)).to(self.device)
+        world = torch.tensor(gaussian_filter(world.cpu().numpy(), sigma=2)).to(self.device)
         
         return world
 

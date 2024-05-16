@@ -93,9 +93,17 @@ class Game:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         world_tensor = torch.from_numpy(world_np).to(device)
         
-        # Adjusted thresholds to increase the amount of land
-        thresholds = torch.tensor([0.1, 0.2, 0.4, 0.55, 0.65, 0.75, 0.85], device=device)
-        
+        thresholds = torch.tensor([0.01, 0.02, 0.03, 0.1, 0.6, 0.7, 0.8], device=device)
+        # threshold intervals:
+        # Min - [0]: Deep Water
+        # [0] - [1]: Shallow Water
+        # [1] - [2]: Sand
+        # [2] - [3]: Grass
+        # [3] - [4]: Forest
+        # [4] - [5]: Mountain
+        # [5] - [6]: Snow
+        # [6] - Max: Rock
+
         colors = torch.tensor([
             [0, 0, 128],     # Deep Water
             [0, 128, 255],   # Shallow Water
@@ -137,13 +145,13 @@ class Game:
             upper_threshold = thresholds[i + 1]
             mask = (smoothed_tensor >= lower_threshold) & (smoothed_tensor < upper_threshold)
             blend_factor = (smoothed_tensor[mask] - lower_threshold) / (upper_threshold - lower_threshold)
-            color1 = stylized_colors[i]
-            color2 = stylized_colors[i + 1]
+            color1 = colors[i]
+            color2 = colors[i + 1]
             blended_colors = blend_colors(color1, color2, blend_factor.unsqueeze(-1))
             color_array[mask] = blended_colors
 
         mask = smoothed_tensor >= thresholds[-1]
-        color_array[mask] = stylized_colors[-1].to(dtype=torch.uint8)
+        color_array[mask] = colors[-1].to(dtype=torch.uint8)
 
         color_array = color_array.cpu().numpy()
         return color_array
