@@ -84,7 +84,7 @@ image_path = os.path.join("assets", "Marshy_04-512x512.png")
 texture = load_texture(image_path)
 
 # Generate sphere vertices and texture coordinates
-vertices, tex_coords = generate_sphere(2.0, 30, 30)
+vertices, tex_coords = generate_sphere(2.0, 60, 60)
 vbo_id = create_vbo(vertices, tex_coords)
 num_vertices = len(vertices)
 
