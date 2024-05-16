@@ -60,10 +60,10 @@ class Game:
         self.continent_names = []
         for label in range(1, num_labels + 1):
             area = np.sum(self.labels == label)
-            if area > 1000:  # Only consider regions larger than a certain threshold
+            if area > 10000:  # Only consider regions larger than a certain threshold
                 # Make sure the region isn't primarily water
                 region_elevations = world_np[self.labels == label]
-                if np.mean(region_elevations) > 0.04:  # Exclude regions with low avg elevation (water)
+                if np.mean(region_elevations) > 0.011:  # Exclude regions with low avg elevation (water)
                     if len(self.continent_names) < len(potential_names):
                         name = potential_names[len(self.continent_names)]
                     else:
@@ -74,7 +74,7 @@ class Game:
 
     def label_connected_regions(self, world_np):
         from scipy.ndimage import label
-        threshold = 0.04  # This excludes deep water (below 0.01) and shallow water (0.01 - 0.03)
+        threshold = 0.011  # This excludes deep water (below 0.01) and shallow water (0.01 - 0.03)
         binary_world = world_np > threshold
         labels, num_labels = label(binary_world)
         return labels, num_labels
