@@ -63,7 +63,7 @@ class Game:
             if area > 10000:  # Only consider regions larger than a certain threshold
                 # Make sure the region isn't primarily water
                 region_elevations = world_np[self.labels == label]
-                if np.mean(region_elevations) > 0.011:  # Exclude regions with low avg elevation (water)
+                if np.mean(region_elevations) > 0.501:  # Exclude regions with low avg elevation (water)
                     if len(self.continent_names) < len(potential_names):
                         name = potential_names[len(self.continent_names)]
                     else:
@@ -74,7 +74,7 @@ class Game:
 
     def label_connected_regions(self, world_np):
         from scipy.ndimage import label
-        threshold = 0.011  # This excludes deep water (below 0.01) and shallow water (0.01 - 0.03)
+        threshold = 0.501
         binary_world = world_np > threshold
         labels, num_labels = label(binary_world)
         return labels, num_labels
@@ -196,7 +196,7 @@ class Game:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         world_tensor = torch.from_numpy(world_np).to(device)
 
-        thresholds = torch.tensor([0.01, 0.02, 0.03, 0.1, 0.6, 0.7, 0.8], device=device)
+        thresholds = torch.tensor([0, 0.49, 0.5, 0.6, 0.7, 0.8, 0.95], device=device)
         colors = torch.tensor([
             [0, 0, 128],
             [0, 128, 255],
@@ -220,17 +220,6 @@ class Game:
             return smoothed
 
         smoothed_tensor = smooth_elevation(world_tensor, 3)
-
-        stylized_colors = torch.tensor([
-            [0, 0, 64],
-            [0, 64, 128],
-            [200, 180, 100],
-            [20, 100, 20],
-            [40, 140, 80],
-            [120, 60, 30],
-            [220, 200, 200],
-            [80, 80, 80],
-        ], dtype=torch.float32, device=device)
 
         for i in range(len(thresholds) - 1):
             lower_threshold = thresholds[i]

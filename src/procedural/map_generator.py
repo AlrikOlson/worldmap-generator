@@ -33,8 +33,15 @@ class MapGenerator:
             progress_callback(40.0)
         
         world = self.geological_processor.apply_geological_features(world, progress_callback)
+        
         world = self.erosion_processor.apply_hydraulic_erosion(world, progress_callback)
-        world = torch.tensor(gaussian_filter(world.cpu().numpy(), sigma=2)).to(self.device)
+        
+        world_np = world.cpu().numpy()
+        world_np = gaussian_filter(world_np, sigma=2)
+        world = torch.tensor(world_np).to(self.device)
+        
+        # Final normalization
+        world = (world - world.min()) / (world.max() - world.min())
         
         return world
 
