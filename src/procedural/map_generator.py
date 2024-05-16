@@ -27,7 +27,7 @@ class MapGenerator:
         world = (world + 1) / 2  # Normalizing the noise
         
         # Apply Gaussian Blur for smoothing
-        world = torch.tensor(gaussian_filter(world.cpu().numpy(), sigma=6)).to(self.device)  # Move back to GPU
+        world = torch.tensor(gaussian_filter(world.cpu().numpy(), sigma=3.5)).to(self.device)  # Move back to GPU
 
         if progress_callback:
             progress_callback(40.0)  # Progress update after initial noise generation
