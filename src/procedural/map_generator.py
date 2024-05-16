@@ -11,11 +11,11 @@ class MapGenerator:
         self.octaves = octaves
         self.persistence = persistence
         self.lacunarity = lacunarity
-        self.seed = seed if seed is not None else random.randint(0, 1000)  # Default to a random seed
+        self.seed = seed if seed is not None else random.randint(0, 1000)
 
     def generate(self):
-        random.seed(self.seed)  # Set the seed for the random number generator
-        base = random.randint(0, 1000)  # Generate a consistent base for pnoise2
+        random.seed(self.seed)
+        base = random.randint(0, 1000)
         world = np.zeros((self.width, self.height))
 
         for x in range(self.width):
@@ -26,27 +26,59 @@ class MapGenerator:
                                 persistence=self.persistence,
                                 lacunarity=self.lacunarity,
                                 base=base)
-                normalized_value = (value + 1) / 2  # Normalize to [0, 1]
+                normalized_value = (value + 1) / 2
                 world[x][y] = normalized_value
 
-        # Additional features/rivers can be added
-        self.add_rivers(world)
-
+        world = self.apply_geological_features(world)
         return world
 
     def regenerate(self, seed=None):
         self.seed = seed if seed is not None else random.randint(0, 1000)
         return self.generate()
 
+    def apply_geological_features(self, world):
+        world = self.add_eroded_features(world)
+        world = self.add_rivers(world)
+        return world
+
+    def add_eroded_features(self, world):
+        erosion_passes = 10
+        for _ in range(erosion_passes):
+            world = self.erode_world(world)
+        return world
+
+    def erode_world(self, world):
+        for _ in range(10000):
+            x, y = random.randint(1, self.width - 2), random.randint(1, self.height - 2)
+            for _ in range(5):
+                neighbors = self.get_neighbors(world, x, y)
+                min_neighbor = min(neighbors, key=lambda k: world[k[0], k[1]])
+                if world[x, y] > world[min_neighbor[0], min_neighbor[1]]:
+                    world[x, y] -= 0.01
+                    world[min_neighbor[0], min_neighbor[1]] += 0.01
+                x, y = min_neighbor
+        return world
+
+    def get_neighbors(self, world, x, y):
+        neighbors = []
+        if x > 0:
+            neighbors.append((x - 1, y))
+        if x < self.width - 1:
+            neighbors.append((x + 1, y))
+        if y > 0:
+            neighbors.append((x, y - 1))
+        if y < self.height - 1:
+            neighbors.append((x, y + 1))
+        return neighbors
+
     def add_rivers(self, world):
-        num_rivers = 5  # Number of rivers
-        river_width = 3  # Width of the river in cells
+        num_rivers = 5
         for _ in range(num_rivers):
             start_x, start_y = self.find_high_point(world)
-            self.carve_river(world, start_x, start_y, river_width)
+            self.carve_river(world, start_x, start_y)
+        return world
 
     def find_high_point(self, world):
-        # Find a high point to start the river
         high_value = -1
         high_point = (0, 0)
         for _ in range(100):
@@ -57,28 +89,16 @@ class MapGenerator:
                 high_point = (x, y)
         return high_point
 
-    def carve_river(self, world, x, y, width):
-        # Carve the river by lowering the elevation
-        directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]  # Left, right, up, down
-        river_length = 100  # Increased length of the river
+    def carve_river(self, world, x, y):
+        directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+        river_length = 200
 
         for _ in range(river_length):
-            for i in range(-width, width):
-                for j in range(-width, width):
-                    if 0 <= x + i < self.width and 0 <= y + j < self.height:
-                        world[x + i][y + j] = 0.0  # Set elevation to water level
-
-            # Move to the next cell in a random direction
-            possible_directions = []
-            for direction in directions:
-                nx, ny = x + direction[0], y + direction[1]
-                if 0 <= nx < self.width and 0 <= ny < self.height:
-                    possible_directions.append(direction)
-            
-            direction = random.choice(possible_directions)
-            x += direction[0]
-            y += direction[1]
-
-            # Ensure the river doesn't go out of bounds
-            if not (0 <= x < self.width and 0 <= y < self.height):
+            if x < 0 or x >= self.width or y < 0 or y >= self.height:
                 break
+
+            world[x, y] = 0.0
+
+            neighbors = self.get_neighbors(world, x, y)
+            min_neighbor = min(neighbors, key=lambda k: world[k[0], k[1]])
+            x, y = min_neighbor

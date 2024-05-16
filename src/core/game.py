@@ -1,5 +1,4 @@
 # src/core/game.py
-
 import pygame
 from procedural.map_generator import MapGenerator  # Relative import
 
