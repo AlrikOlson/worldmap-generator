@@ -27,7 +27,7 @@ class MapGenerator:
         world = (world + 1) / 2  # Normalizing the noise
         
         # Apply Gaussian Blur for smoothing
-        world = torch.tensor(gaussian_filter(world.cpu().numpy(), sigma=3.5)).to(self.device)  # Move back to GPU
+        world = torch.tensor(gaussian_filter(world.cpu().numpy(), sigma=2)).to(self.device)  # Move back to GPU
 
         if progress_callback:
             progress_callback(40.0)  # Progress update after initial noise generation
@@ -35,6 +35,8 @@ class MapGenerator:
         world = self.apply_geological_features(world, progress_callback)
         # Apply hydraulic erosion simulation
         world = self.apply_hydraulic_erosion(world, progress_callback)
+        # Apply Gaussian Blur for smoothing
+        world = torch.tensor(gaussian_filter(world.cpu().numpy(), sigma=3)).to(self.device)  # Move back to GPU
         return world
 
     def generate_perlin_noise(self, width, height, scale, octaves, persistence, lacunarity):
@@ -224,7 +226,7 @@ class MapGenerator:
     def calculate_velocity(self, water_flow):
         # Calculate velocity based on water flow
         velocity = torch.zeros_like(water_flow)
-        velocity[:-1, :] = torch.sqrt(water_flow[:-1, :] ** 2 + water_flow[:-1, :-1] ** 2)
+        velocity[:-1, :-1] = torch.sqrt(water_flow[:-1, :-1] ** 2 + water_flow[:-1, 1:] ** 2)
         velocity[-1, :] = velocity[-2, :]  # Copy the last row from the previous row
         velocity[:, -1] = velocity[:, -2]  # Copy the last column from the previous column
         return velocity
