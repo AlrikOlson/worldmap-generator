@@ -13,7 +13,7 @@ class Game:
         self.map_height = map_height
         self.clock = pygame.time.Clock()
         self.running = True
-        self.map_gen = MapGenerator(map_width, map_height, scale=500.0, octaves=24)
+        self.map_gen = MapGenerator(map_width, map_height, scale=400.0, octaves=48)
         self.world = None
         self.progress = 0
         self.world_surface = pygame.Surface((map_width, map_height))
@@ -92,17 +92,21 @@ class Game:
     def generate_color_array(self, world_np):
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         world_tensor = torch.from_numpy(world_np).to(device)
-        thresholds = torch.tensor([0.2, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85], device=device)
+        
+        # Adjusted thresholds to increase the amount of land
+        thresholds = torch.tensor([0.1, 0.2, 0.4, 0.55, 0.65, 0.75, 0.85], device=device)
+        
         colors = torch.tensor([
-            [0, 0, 128],
-            [0, 128, 255],
-            [240, 230, 140],
-            [34, 139, 34],
-            [60, 179, 113],
-            [160, 82, 45],
-            [255, 250, 250],
-            [128, 128, 128], 
+            [0, 0, 128],     # Deep Water
+            [0, 128, 255],   # Shallow Water
+            [240, 230, 140], # Sand
+            [34, 139, 34],   # Grass
+            [60, 179, 113],  # Forest
+            [160, 82, 45],   # Mountain
+            [255, 250, 250], # Snow
+            [128, 128, 128], # Rock
         ], dtype=torch.float32, device=device)
+        
         color_array = torch.zeros((self.map_width, self.map_height, 3), dtype=torch.uint8, device=device)
 
         def blend_colors(color1, color2, factor):
@@ -117,7 +121,6 @@ class Game:
 
         smoothed_tensor = smooth_elevation(world_tensor, 3)
 
-        # Apply a stylized color palette
         stylized_colors = torch.tensor([
             [0, 0, 64],
             [0, 64, 128],
@@ -135,19 +138,16 @@ class Game:
             mask = (smoothed_tensor >= lower_threshold) & (smoothed_tensor < upper_threshold)
             blend_factor = (smoothed_tensor[mask] - lower_threshold) / (upper_threshold - lower_threshold)
             color1 = stylized_colors[i]
-            color2 = stylized_colors[i+1]
+            color2 = stylized_colors[i + 1]
             blended_colors = blend_colors(color1, color2, blend_factor.unsqueeze(-1))
             color_array[mask] = blended_colors
 
         mask = smoothed_tensor >= thresholds[-1]
         color_array[mask] = stylized_colors[-1].to(dtype=torch.uint8)
 
-        # Add noise to create a more artistic look
-        #noise = torch.randn_like(color_array, dtype=torch.float32, device=device) * 20
-        #color_array = (color_array.to(dtype=torch.float32) + noise).clamp(0, 255).to(dtype=torch.uint8)
-
         color_array = color_array.cpu().numpy()
         return color_array
+
 
     def quit_game(self):
         self.running = False
