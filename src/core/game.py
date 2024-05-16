@@ -1,6 +1,7 @@
 # src/core/game.py
 import pygame
 import threading
+import numpy as np
 from procedural.map_generator import MapGenerator  # Relative import
 
 class Game:
@@ -12,6 +13,7 @@ class Game:
         self.world = None  # Initial map is None until generated
         self.progress = 0  # Progress indicator
         self.world_surface = pygame.Surface((1280, 720))  # Surface for the map
+        self.render_surface = self.world_surface.copy()  # Separate surface for rendering
         self.generate_world()  # Start generating the world
 
     def generate_world(self):
@@ -47,7 +49,9 @@ class Game:
     def render(self):
         self.screen.fill((0, 0, 0))
         if self.world is not None:
-            self.screen.blit(self.world_surface, (0, 0))  # Blit the world surface to the screen
+            # Copy world_surface to render_surface to avoid locking issues during blit
+            self.render_surface = self.world_surface.copy()
+            self.screen.blit(self.render_surface, (0, 0))  # Blit the world surface to the screen
         self.render_progress()
         pygame.display.flip()
 
@@ -58,14 +62,39 @@ class Game:
             self.screen.blit(text, (10, 10))
 
     def update_world_surface(self):
-        array = pygame.surfarray.pixels3d(self.world_surface)  # Get the pixel array of the surface
-        for x in range(self.world.shape[0]):
-            for y in range(self.world.shape[1]):
-                value = self.world[x][y]
-                color = self.get_color(value, x, y)
-                array[x][y] = color  # Set the pixel color
+        try:
+            # Ensure the `self.world` tensor matches the expected shape
+            if self.world.shape != (1280, 720):
+                raise ValueError("Generated world shape does not match surface dimensions")
 
-    def get_color(self, value, x, y):
+            # Convert the `self.world` tensor to a numpy array and ensure it's properly shaped
+            world_np = self.world.cpu().numpy()
+            
+            # Initialize color array with the shape (width, height, 3)
+            color_array = np.zeros((1280, 720, 3), dtype=np.uint8)  # Note: width, height, 3
+            
+            for x in range(1280):
+                for y in range(720):
+                    value = world_np[x, y]
+                    color = self.get_color(value)
+                    color_array[x, y] = color  # Note: access pattern corrected for debugging
+
+            print(f"world_surface size: {self.world_surface.get_size()}")
+            print(f"color_array.shape: {color_array.shape}")
+
+            # Efficiently blit the color array to the world surface using PixelArray
+            pixel_array = pygame.PixelArray(self.world_surface)
+            pixel_array[:, :] = color_array
+            del pixel_array  # Unlock the surface by deleting the PixelArray reference
+        except Exception as e:
+            # Output detailed information about the exception and the relevant data
+            print(f"Exception occurred: {e}")
+            print(f"self.world.shape: {self.world.shape}")
+            print(f"world_np.shape: {world_np.shape} -- dtype: {world_np.dtype}")
+            print(f"color_array.shape: {color_array.shape} -- dtype: {color_array.dtype}")
+            raise  # Re-raise the exception after printing the details
+
+    def get_color(self, value):
         # Adjusted biomes based on elevation
         if value < 0.15:
             return (0, 0, 128)  # Deep water
