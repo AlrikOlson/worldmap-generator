@@ -28,31 +28,25 @@ HIGHLIGHT_ALPHA = 128
 HIGHLIGHT_RGBA = (255, 255, 0, HIGHLIGHT_ALPHA)
 MAP_SCALE = 400.0
 MAP_OCTAVES = 48
-MIN_CONTINENT_SIZE = 10000
+MIN_CONTINENT_SIZE = 5000
 AREA_CONVERSION_FACTOR = 0.386102
 KERNEL_SIZE = 3
 FPS = 60
 
 SHALLOW_DEEP_BLEND_FACTOR = 25.0  # You can adjust this value to control the smoothness
 
-# Color thresholds
-DEEP_WATER_THRESHOLD = 0.0
-SHALLOW_WATER_THRESHOLD = 0.7  # Lowered to create more deep water and abrupt transition to shallow water
-BEACH_THRESHOLD = 0.71
-GRASSLAND_THRESHOLD = 0.75
-FOREST_THRESHOLD = 0.8
-MOUNTAIN_THRESHOLD = 0.9
-SNOW_THRESHOLD = 0.98
+# Threshold for land/sea
+LAND_SEA_THRESHOLD = 0.7
 
-WORLD_REGION_COLOR_THRESHOLDS = [
-    DEEP_WATER_THRESHOLD,
-    SHALLOW_WATER_THRESHOLD,
-    BEACH_THRESHOLD,
-    GRASSLAND_THRESHOLD,
-    FOREST_THRESHOLD,
-    MOUNTAIN_THRESHOLD,
-    SNOW_THRESHOLD
-]
+# Absolute thresholds for water
+DEEP_WATER_THRESHOLD = 0.0
+SHALLOW_WATER_THRESHOLD = 0.65  # Adjust as needed
+
+# Percentiles for land regions
+GRASSLAND_PERCENTILE = 0.2
+FOREST_PERCENTILE = 0.6
+MOUNTAIN_PERCENTILE = 0.9
+SNOW_PERCENTILE = 0.99
 
 # Realistic colors
 DEEP_WATER_COLOR = [0, 34, 102]  # Dark Blue
@@ -120,8 +114,7 @@ class ContinentLabeler:
             area = np.sum(labels == label)
             if area > MIN_CONTINENT_SIZE:
                 region_elevations = world_np[labels == label]
-                # Ensure the region has elevations at least equal to the BEACH_THRESHOLD
-                if np.all(region_elevations >= BEACH_THRESHOLD):
+                if np.all(region_elevations >= LAND_SEA_THRESHOLD):
                     if len(continent_names) < len(potential_names):
                         name = potential_names[len(continent_names)]
                     else:
@@ -134,7 +127,7 @@ class ContinentLabeler:
 
     def label_connected_regions(self, world_np):
         from scipy.ndimage import label
-        binary_world = world_np >= BEACH_THRESHOLD  # Changed from greater than to greater than or equal to the beach threshold
+        binary_world = world_np >= LAND_SEA_THRESHOLD
         labels, num_labels = label(binary_world)
         return labels, num_labels
 
@@ -171,7 +164,24 @@ class WorldRenderer:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         world_tensor = torch.from_numpy(world_np).to(device)
 
-        thresholds = torch.tensor(WORLD_REGION_COLOR_THRESHOLDS, device=device)
+        land_mask = world_tensor >= LAND_SEA_THRESHOLD
+        land_elevations = world_tensor[land_mask]
+
+        grassland_threshold = np.percentile(land_elevations.cpu().numpy(), GRASSLAND_PERCENTILE * 100)
+        forest_threshold = np.percentile(land_elevations.cpu().numpy(), FOREST_PERCENTILE * 100)
+        mountain_threshold = np.percentile(land_elevations.cpu().numpy(), MOUNTAIN_PERCENTILE * 100)
+        snow_threshold = np.percentile(land_elevations.cpu().numpy(), SNOW_PERCENTILE * 100)
+
+        thresholds = torch.tensor([
+            DEEP_WATER_THRESHOLD,
+            SHALLOW_WATER_THRESHOLD,
+            LAND_SEA_THRESHOLD,
+            grassland_threshold,
+            forest_threshold,
+            mountain_threshold,
+            snow_threshold
+        ], device=device)
+
         colors = torch.tensor(WORLD_REGION_COLORS, dtype=torch.float32, device=device)
 
         color_array = torch.zeros((self.world.width, self.world.height, 3), dtype=torch.uint8, device=device)
@@ -195,9 +205,8 @@ class WorldRenderer:
 
             blend_factor = (smoothed_tensor[mask] - lower_threshold) / (upper_threshold - lower_threshold)
 
-            # Smoother blend transition for shallow water
             if i == 0:  # Deep to shallow water transition
-                blend_factor = torch.pow(blend_factor, SHALLOW_DEEP_BLEND_FACTOR)  # Use the constant
+                blend_factor = torch.pow(blend_factor, SHALLOW_DEEP_BLEND_FACTOR)
 
             color1 = colors[i]
             color2 = colors[i + 1]
