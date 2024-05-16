@@ -1,9 +1,10 @@
+# game.py
 import pygame
 import threading
 import numpy as np
 import torch
 from procedural.map_generator import MapGenerator
-
+from ui.button import Button
 
 class Game:
     def __init__(self, screen, map_width, map_height):
@@ -18,6 +19,17 @@ class Game:
         self.world_surface = pygame.Surface((map_width, map_height))
         self.render_surface = self.world_surface.copy()
         self.generate_world()
+
+        button_width, button_height = 100, 50
+        self.quit_button = Button(
+            rect=(map_width - button_width - 10, map_height - button_height - 10, button_width, button_height),
+            color=(150, 0, 0),
+            hover_color=(200, 0, 0),
+            text='Quit',
+            font=pygame.font.Font(None, 36),
+            text_color=(255, 255, 255),
+            callback=self.quit_game
+        )
 
     def generate_world(self):
         self.progress = 0
@@ -44,6 +56,7 @@ class Game:
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
                     self.generate_world()
+            self.quit_button.handle_event(event)
     
     def update(self):
         pass
@@ -54,6 +67,7 @@ class Game:
             self.render_surface = self.world_surface.copy()
             self.screen.blit(self.render_surface, (0, 0))
         self.render_progress()
+        self.quit_button.draw(self.screen)
         pygame.display.flip()
 
     def render_progress(self):
@@ -135,6 +149,8 @@ class Game:
         color_array = color_array.cpu().numpy()
         return color_array
 
+    def quit_game(self):
+        self.running = False
 
 if __name__ == "__main__":
     pygame.init()
