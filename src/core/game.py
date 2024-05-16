@@ -39,8 +39,8 @@ SHALLOW_WATER_THRESHOLD = 0.49
 BEACH_THRESHOLD = 0.5
 FOREST_THRESHOLD = 0.6
 GRASSLAND_THRESHOLD = 0.7
-MOUNTAIN_THRESHOLD = 0.8
-SNOW_THRESHOLD = 0.95
+MOUNTAIN_THRESHOLD = 0.9
+SNOW_THRESHOLD = 0.98
 
 WORLD_REGION_COLOR_THRESHOLDS = [
     DEEP_WATER_THRESHOLD,
@@ -52,14 +52,23 @@ WORLD_REGION_COLOR_THRESHOLDS = [
     SNOW_THRESHOLD
 ]
 
+# Realistic colors
+DEEP_WATER_COLOR = [0, 45, 137]
+SHALLOW_WATER_COLOR = [73, 207, 255]
+BEACH_COLOR = [244, 164, 96]
+FOREST_COLOR = [34, 139, 34]
+GRASSLAND_COLOR = [124, 252, 0]
+MOUNTAIN_COLOR = [139, 137, 137]
+SNOW_COLOR = [255, 255, 255]
+
 WORLD_REGION_COLORS = [
-    [0, 0, 128],         # deep water
-    [0, 128, 255],       # shallow water
-    [240, 230, 140],     # beach
-    [34, 139, 34],       # forest
-    [60, 179, 113],      # grassland
-    [160, 82, 45],       # mountain
-    [255, 250, 250]      # snow
+    DEEP_WATER_COLOR,   # deep water
+    SHALLOW_WATER_COLOR, # shallow water
+    BEACH_COLOR,       # beach
+    FOREST_COLOR,      # forest
+    GRASSLAND_COLOR,   # grassland
+    MOUNTAIN_COLOR,    # mountain
+    SNOW_COLOR         # snow
 ]
 
 class World:
