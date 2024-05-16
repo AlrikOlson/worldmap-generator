@@ -93,7 +93,7 @@ class Game:
     def generate_color_array(self, world_np):
         print("Starting generate_color_array")
         # Define a 3D array where the third dimension is the RGB channels
-        color_array = np.zeros((720, 1280, 3), dtype=np.uint8)  # Corrected dimensions
+        color_array = np.zeros((1280, 720, 3), dtype=np.uint8)  # Corrected dimensions
         print(f"Initialized color_array shape: {color_array.shape}, dtype: {color_array.dtype}")
 
         # Define thresholds and colors
@@ -109,11 +109,11 @@ class Game:
         ]
 
         # Use numpy digitize to efficiently map values to biomes
-        indices = np.digitize(world_np.flatten(), thresholds).reshape((1280, 720))
+        indices = np.digitize(world_np, thresholds)
         print(f"indices shape: {indices.shape}, dtype: {indices.dtype}")
 
         for i, color in enumerate(colors):
-            color_array[indices.T == i] = color  # Access pattern updated
+            color_array[indices == i] = color
             print(f"Assigned color {color} to {np.sum(indices == i)} pixels")
 
         print(f"Final color_array shape: {color_array.shape}, dtype: {color_array.dtype}")

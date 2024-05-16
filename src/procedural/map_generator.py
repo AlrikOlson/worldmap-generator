@@ -1,4 +1,3 @@
-# src/procedural/map_generator.py
 import torch
 import random
 import numpy as np
@@ -15,6 +14,7 @@ class MapGenerator:
         self.device = torch.device(device)
 
     def generate(self, progress_callback=None):
+        self.seed = random.randint(0, 1000)  # Generate a new random seed each time
         random.seed(self.seed)
         torch.manual_seed(self.seed)
         
@@ -40,8 +40,11 @@ class MapGenerator:
         max_value = 0
         
         for _ in range(octaves):
-            x = torch.linspace(0, width - 1, width, device=self.device) / scale * frequency
-            y = torch.linspace(0, height - 1, height, device=self.device) / scale * frequency
+            # Incorporate the seed into the offsets
+            x_offset = random.uniform(0, 1000)
+            y_offset = random.uniform(0, 1000)
+            x = (torch.linspace(0, width - 1, width, device=self.device) / scale * frequency) + x_offset
+            y = (torch.linspace(0, height - 1, height, device=self.device) / scale * frequency) + y_offset
 
             x_grid, y_grid = torch.meshgrid(x, y)
             noise += amplitude * self.perlin(x_grid, y_grid)
@@ -75,7 +78,7 @@ class MapGenerator:
     
     def fade(self, t):
         return t * t * t * (t * (t * 6 - 15) + 10)
-    
+
     def gradient(self, x, y):
         random = torch.sin(x * 12.9898 + y * 78.233) * 43758.5453
         return random.frac() * 2 - 1
