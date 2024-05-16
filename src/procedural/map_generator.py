@@ -137,8 +137,8 @@ class GeologicalProcessor:
         return eroded_world
 
     def add_rivers(self, world, progress_callback=None):
-        num_rivers = 5
-        river_starts = self.find_high_points(world, num_rivers)
+        num_rivers = 20
+        river_starts = self.find_edge_points(world, num_rivers)
 
         for i, (start_x, start_y) in enumerate(river_starts):
             self.carve_river(world, start_x, start_y)
@@ -146,18 +146,28 @@ class GeologicalProcessor:
                 progress_callback(70.0 + (i + 1) / num_rivers * 30.0)  # Rivers are the remaining 30%
         return world
 
-    def find_high_points(self, world, num_points):
-        high_points = []
+    def find_edge_points(self, world, num_points):
+        edge_points = []
         world_cpu = world.cpu().numpy()
+
         for _ in range(num_points):
-            max_value = np.max(world_cpu)
-            max_indices = np.where(world_cpu == max_value)
-            if len(max_indices[0]) > 0:
-                index = random.randint(0, len(max_indices[0]) - 1)
-                x, y = max_indices[0][index], max_indices[1][index]
-                high_points.append((x, y))
-                world_cpu[x, y] = -1
-        return high_points
+            edge = random.choice(['top', 'bottom', 'left', 'right'])
+            if edge == 'top':
+                x = random.randint(0, self.width - 1)
+                y = 0
+            elif edge == 'bottom':
+                x = random.randint(0, self.width - 1)
+                y = self.height - 1
+            elif edge == 'left':
+                x = 0
+                y = random.randint(0, self.height - 1)
+            else:  # 'right'
+                x = self.width - 1
+                y = random.randint(0, self.height - 1)
+
+            edge_points.append((x, y))
+
+        return edge_points
 
     def carve_river(self, world, x, y):
         directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
@@ -170,16 +180,26 @@ class GeologicalProcessor:
 
             world[x, y] = 0.0
 
-            neighbors = self.get_neighbors(world, x, y)
-            min_neighbor = min(neighbors, key=lambda k: world[k[0], k[1]])
+            # Calculate the slope in each direction
+            slopes = []
+            for dx, dy in directions:
+                nx, ny = x + dx, y + dy
+                if 0 <= nx < self.width and 0 <= ny < self.height:
+                    slope = world[nx, ny] - world[x, y]
+                    slopes.append((slope, (dx, dy)))
+
+            # Choose the direction with the steepest downward slope
+            max_slope, max_direction = max(slopes, key=lambda x: x[0], default=(0, (0, 0)))
 
             if prev_direction is None or random.random() < 0.1:
-                prev_direction = random.choice(directions)
+                prev_direction = max_direction
             else:
-                min_neighbor = min([n for n in neighbors if n[0] - x == prev_direction[0] and n[1] - y == prev_direction[1]],
-                                   key=lambda k: world[k[0], k[1]], default=min_neighbor)
+                # Filter directions to consider only the previous direction and the steepest direction
+                valid_directions = [d for d in slopes if d[1] == prev_direction or d[1] == max_direction]
+                _, prev_direction = max(valid_directions, key=lambda x: x[0], default=(0, (0, 0)))
 
-            x, y = min_neighbor
+            x += prev_direction[0]
+            y += prev_direction[1]
 
     def get_neighbors(self, world, x, y):
         neighbors = []
