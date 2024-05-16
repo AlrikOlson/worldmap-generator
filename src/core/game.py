@@ -4,15 +4,18 @@ import numpy as np
 import torch
 from procedural.map_generator import MapGenerator
 
+
 class Game:
-    def __init__(self, screen):
+    def __init__(self, screen, map_width, map_height):
         self.screen = screen
+        self.map_width = map_width
+        self.map_height = map_height
         self.clock = pygame.time.Clock()
         self.running = True
-        self.map_gen = MapGenerator(1280, 720, scale=200.0, octaves=6)
+        self.map_gen = MapGenerator(map_width, map_height, scale=500.0, octaves=24)
         self.world = None
         self.progress = 0
-        self.world_surface = pygame.Surface((1280, 720))
+        self.world_surface = pygame.Surface((map_width, map_height))
         self.render_surface = self.world_surface.copy()
         self.generate_world()
 
@@ -61,7 +64,7 @@ class Game:
 
     def update_world_surface(self):
         try:
-            if self.world.shape != (1280, 720):
+            if self.world.shape != (self.map_width, self.map_height):
                 raise ValueError("Generated world shape does not match surface dimensions")
             world_np = self.world.cpu().numpy()
             color_array = self.generate_color_array(world_np)
@@ -86,7 +89,7 @@ class Game:
             [255, 250, 250],
             [128, 128, 128], 
         ], dtype=torch.float32, device=device)
-        color_array = torch.zeros((1280, 720, 3), dtype=torch.uint8, device=device)
+        color_array = torch.zeros((self.map_width, self.map_height, 3), dtype=torch.uint8, device=device)
 
         def blend_colors(color1, color2, factor):
             return (color1 * (1 - factor) + color2 * factor).to(dtype=torch.uint8)
@@ -100,24 +103,42 @@ class Game:
 
         smoothed_tensor = smooth_elevation(world_tensor, 3)
 
+        # Apply a stylized color palette
+        stylized_colors = torch.tensor([
+            [0, 0, 64],
+            [0, 64, 128],
+            [200, 180, 100],
+            [20, 100, 20],
+            [40, 140, 80],
+            [120, 60, 30],
+            [220, 200, 200],
+            [80, 80, 80], 
+        ], dtype=torch.float32, device=device)
+
         for i in range(len(thresholds) - 1):
             lower_threshold = thresholds[i]
             upper_threshold = thresholds[i + 1]
             mask = (smoothed_tensor >= lower_threshold) & (smoothed_tensor < upper_threshold)
             blend_factor = (smoothed_tensor[mask] - lower_threshold) / (upper_threshold - lower_threshold)
-            color1 = colors[i]
-            color2 = colors[i+1]
+            color1 = stylized_colors[i]
+            color2 = stylized_colors[i+1]
             blended_colors = blend_colors(color1, color2, blend_factor.unsqueeze(-1))
             color_array[mask] = blended_colors
 
         mask = smoothed_tensor >= thresholds[-1]
-        color_array[mask] = colors[-1].to(dtype=torch.uint8)
+        color_array[mask] = stylized_colors[-1].to(dtype=torch.uint8)
+
+        # Add noise to create a more artistic look
+        #noise = torch.randn_like(color_array, dtype=torch.float32, device=device) * 20
+        #color_array = (color_array.to(dtype=torch.float32) + noise).clamp(0, 255).to(dtype=torch.uint8)
+
         color_array = color_array.cpu().numpy()
         return color_array
+
 
 if __name__ == "__main__":
     pygame.init()
     screen = pygame.display.set_mode((1280, 720))
-    game = Game(screen)
+    game = Game(screen, 1280, 720)
     game.run()
     pygame.quit()

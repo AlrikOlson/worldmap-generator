@@ -4,9 +4,15 @@ from core.game import Game  # Relative import
 
 def main():
     pygame.init()
-    screen = pygame.display.set_mode((1280, 720))
+    
+    # Get the display's current resolution
+    display_info = pygame.display.Info()
+    screen_width, screen_height = display_info.current_w, display_info.current_h
 
-    game = Game(screen)
+    # Set the display mode to fullscreen and borderless
+    screen = pygame.display.set_mode((screen_width, screen_height), pygame.FULLSCREEN | pygame.NOFRAME)
+    
+    game = Game(screen, screen_width, screen_height)
     game.run()
 
     pygame.quit()
