@@ -4,6 +4,7 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 import numpy as np
 import os
+import ctypes
 
 # Initialize Pygame and OpenGL
 pygame.init()
@@ -46,31 +47,50 @@ def generate_sphere(radius, lats, longs):
             y = np.sin(lng)
             
             vertices.append((x * zr0 * radius, y * zr0 * radius, z0 * radius))
-            tex_coords.append((1 - float(j) / longs, 1 - float(i) / lats))
+            tex_coords.append((float(j) / longs, float(i) / lats))
             
             vertices.append((x * zr1 * radius, y * zr1 * radius, z1 * radius))
-            tex_coords.append((1 - float(j) / longs, 1 - float(i + 1) / lats))
+            tex_coords.append((float(j) / longs, float(i + 1) / lats))
             
     return vertices, tex_coords
 
-def draw_sphere(vertices, tex_coords):
-    glEnable(GL_TEXTURE_2D)
-    glBegin(GL_QUAD_STRIP)
-    for i, (vertex, tex_coord) in enumerate(zip(vertices, tex_coords)):
-        glTexCoord2fv(tex_coord)
-        glVertex3fv(vertex)
-    glEnd()
-    glDisable(GL_TEXTURE_2D)
+def create_vbo(vertices, tex_coords):
+    vertices = np.array(vertices, dtype=np.float32)
+    tex_coords = np.array(tex_coords, dtype=np.float32)
+
+    vbo_id = glGenBuffers(1)
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_id)
+    glBufferData(GL_ARRAY_BUFFER, vertices.nbytes + tex_coords.nbytes, None, GL_STATIC_DRAW)
+    glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.nbytes, vertices)
+    glBufferSubData(GL_ARRAY_BUFFER, vertices.nbytes, tex_coords.nbytes, tex_coords)
+
+    return vbo_id
+
+def draw_sphere(vbo_id, num_vertices):
+    glEnableClientState(GL_VERTEX_ARRAY)
+    glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_id)
+    glVertexPointer(3, GL_FLOAT, 0, None)
+    glTexCoordPointer(2, GL_FLOAT, 0, ctypes.c_void_p(num_vertices * 12))
+
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, num_vertices)
+
+    glDisableClientState(GL_VERTEX_ARRAY)
+    glDisableClientState(GL_TEXTURE_COORD_ARRAY)
 
 # Load the image texture
 image_path = os.path.join("assets", "Marshy_04-512x512.png")
 texture = load_texture(image_path)
 
 # Generate sphere vertices and texture coordinates
-vertices, tex_coords = generate_sphere(2.0, 60, 60)
+vertices, tex_coords = generate_sphere(2.0, 30, 30)
+vbo_id = create_vbo(vertices, tex_coords)
+num_vertices = len(vertices)
 
 # Main loop
 glEnable(GL_DEPTH_TEST)
+glEnable(GL_TEXTURE_2D)  # Ensure texturing is enabled
 glMatrixMode(GL_PROJECTION)
 gluPerspective(45, (800 / 600), 0.1, 50.0)
 glMatrixMode(GL_MODELVIEW)
@@ -89,7 +109,7 @@ while running:
     glRotatef(1, 3, 1, 1)
     
     glBindTexture(GL_TEXTURE_2D, texture)
-    draw_sphere(vertices, tex_coords)
+    draw_sphere(vbo_id, num_vertices)
     
     pygame.display.flip()
     pygame.time.wait(10)
