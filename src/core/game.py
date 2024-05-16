@@ -77,6 +77,8 @@ class Game:
                 for y in range(720):
                     value = world_np[x, y]
                     color = self.get_color(value)
+                    if not all(0 <= c <= 255 for c in color):  # Ensure color values are within valid range
+                        raise ValueError(f"Invalid color value {color} at ({x}, {y})")
                     color_array[x, y] = color  # Note: access pattern corrected for debugging
 
             print(f"world_surface size: {self.world_surface.get_size()}")
@@ -84,7 +86,9 @@ class Game:
 
             # Efficiently blit the color array to the world surface using PixelArray
             pixel_array = pygame.PixelArray(self.world_surface)
-            pixel_array[:, :] = color_array
+            for x in range(1280):
+                for y in range(720):
+                    pixel_array[x, y] = tuple(color_array[x, y])
             del pixel_array  # Unlock the surface by deleting the PixelArray reference
         except Exception as e:
             # Output detailed information about the exception and the relevant data
@@ -92,6 +96,8 @@ class Game:
             print(f"self.world.shape: {self.world.shape}")
             print(f"world_np.shape: {world_np.shape} -- dtype: {world_np.dtype}")
             print(f"color_array.shape: {color_array.shape} -- dtype: {color_array.dtype}")
+            if 'color' in locals():
+                print(f"Invalid color value encountered: {color}")
             raise  # Re-raise the exception after printing the details
 
     def get_color(self, value):
