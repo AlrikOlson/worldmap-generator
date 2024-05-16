@@ -8,8 +8,6 @@ import random
 from scipy.ndimage import measurements
 
 # Constants
-WINDOW_WIDTH = 1280
-WINDOW_HEIGHT = 720
 BUTTON_WIDTH = 100
 BUTTON_HEIGHT = 50
 BUTTON_MARGIN = 10
@@ -349,10 +347,3 @@ class Game:
 
     def quit_game(self):
         self.running = False
-
-if __name__ == "__main__":
-    pygame.init()
-    screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
-    game = Game(screen, WINDOW_WIDTH, WINDOW_HEIGHT)
-    game.run()
-    pygame.quit()
