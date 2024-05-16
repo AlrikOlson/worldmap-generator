@@ -28,12 +28,30 @@ HIGHLIGHT_ALPHA = 128
 HIGHLIGHT_RGBA = (255, 255, 0, HIGHLIGHT_ALPHA)
 MAP_SCALE = 400.0
 MAP_OCTAVES = 48
-ELEVATION_THRESHOLD = 0.501
 MIN_CONTINENT_SIZE = 10000
 AREA_CONVERSION_FACTOR = 0.386102
 KERNEL_SIZE = 3
 FPS = 60
-WORLD_REGION_COLOR_THRESHOLDS = [0, 0.49, 0.5, 0.6, 0.7, 0.8, 0.95]
+
+# Color thresholds
+DEEP_WATER_THRESHOLD = 0.0
+SHALLOW_WATER_THRESHOLD = 0.49
+BEACH_THRESHOLD = 0.5
+FOREST_THRESHOLD = 0.6
+GRASSLAND_THRESHOLD = 0.7
+MOUNTAIN_THRESHOLD = 0.8
+SNOW_THRESHOLD = 0.95
+
+WORLD_REGION_COLOR_THRESHOLDS = [
+    DEEP_WATER_THRESHOLD,
+    SHALLOW_WATER_THRESHOLD,
+    BEACH_THRESHOLD,
+    FOREST_THRESHOLD,
+    GRASSLAND_THRESHOLD,
+    MOUNTAIN_THRESHOLD,
+    SNOW_THRESHOLD
+]
+
 WORLD_REGION_COLORS = [
     [0, 0, 128],         # deep water
     [0, 128, 255],       # shallow water
@@ -91,7 +109,8 @@ class ContinentLabeler:
             area = np.sum(labels == label)
             if area > MIN_CONTINENT_SIZE:
                 region_elevations = world_np[labels == label]
-                if np.mean(region_elevations) > ELEVATION_THRESHOLD:
+                # Ensure the region has elevations at least equal to the BEACH_THRESHOLD
+                if np.all(region_elevations >= BEACH_THRESHOLD):
                     if len(continent_names) < len(potential_names):
                         name = potential_names[len(continent_names)]
                     else:
@@ -104,7 +123,7 @@ class ContinentLabeler:
 
     def label_connected_regions(self, world_np):
         from scipy.ndimage import label
-        binary_world = world_np > ELEVATION_THRESHOLD
+        binary_world = world_np >= BEACH_THRESHOLD  # Changed from greater than to greater than or equal to the beach threshold
         labels, num_labels = label(binary_world)
         return labels, num_labels
 
