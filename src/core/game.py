@@ -7,49 +7,78 @@ from ui.button import Button
 import random
 from scipy.ndimage import measurements
 
-class Game:
-    def __init__(self, screen, map_width, map_height):
-        self.screen = screen
-        self.map_width = map_width
-        self.map_height = map_height
-        self.clock = pygame.time.Clock()
-        self.running = True
-        self.map_gen = MapGenerator(map_width, map_height, scale=400.0, octaves=48)
-        self.world = None
-        self.progress = 0
-        self.world_surface = pygame.Surface((map_width, map_height))
-        self.render_surface = self.world_surface.copy()
-        self.continent_names = []
+# Constants
+WINDOW_WIDTH = 1280
+WINDOW_HEIGHT = 720
+BUTTON_WIDTH = 100
+BUTTON_HEIGHT = 50
+BUTTON_MARGIN = 10
+QUIT_TEXT_SIZE = 36
+CONTINENT_TEXT_SIZE = 24
+TEXT_X_OFFSET = 200
+START_Y_OFFSET = 20
+CONTINENT_TEXT_Y_PADDING = 30
+PROGRESS_TEXT_X = 10
+PROGRESS_TEXT_Y = 10
+BACKGROUND_COLOR = (0, 0, 0)
+TEXT_COLOR = (255, 255, 255)
+QUIT_BUTTON_COLOR = (150, 0, 0)
+QUIT_BUTTON_HOVER_COLOR = (200, 0, 0)
+HIGHLIGHT_ALPHA = 128
+HIGHLIGHT_RGBA = (255, 255, 0, HIGHLIGHT_ALPHA)
+MAP_SCALE = 400.0
+MAP_OCTAVES = 48
+ELEVATION_THRESHOLD = 0.501
+MIN_CONTINENT_SIZE = 10000
+AREA_CONVERSION_FACTOR = 0.386102
+KERNEL_SIZE = 3
+FPS = 60
+WORLD_REGION_COLOR_THRESHOLDS = [0, 0.49, 0.5, 0.6, 0.7, 0.8, 0.95]
+WORLD_REGION_COLORS = [
+    [0, 0, 128],         # deep water
+    [0, 128, 255],       # shallow water
+    [240, 230, 140],     # beach
+    [34, 139, 34],       # forest
+    [60, 179, 113],      # grassland
+    [160, 82, 45],       # mountain
+    [255, 250, 250]      # snow
+]
+
+class World:
+    def __init__(self, width, height):
+        self.width = width
+        self.height = height
+        self.data = None
         self.labels = None
-        self.generate_world()
-
-        button_width, button_height = 100, 50
-        self.quit_button = Button(
-            rect=(map_width - button_width - 10, map_height - button_height - 10, button_width, button_height),
-            color=(150, 0, 0),
-            hover_color=(200, 0, 0),
-            text='Quit',
-            font=pygame.font.Font(None, 36),
-            text_color=(255, 255, 255),
-            callback=self.quit_game
-        )
-
-    def generate_world(self):
-        self.progress = 0
         self.continent_names = []
-        threading.Thread(target=self.run_map_generation).start()
 
-    def run_map_generation(self):
-        self.world = self.map_gen.generate(self.update_progress)
-        self.label_continents()
-        self.update_world_surface()
+    def update_data(self, data):
+        self.data = data
 
-    def update_progress(self, progress):
-        self.progress = progress
+    def update_labels(self, labels):
+        self.labels = labels
+
+    def update_continent_names(self, names):
+        self.continent_names = names
+
+class WorldGenerator:
+    def __init__(self, width, height, scale, octaves):
+        self.width = width
+        self.height = height
+        self.map_gen = MapGenerator(width, height, scale=scale, octaves=octaves)
+
+    def generate(self, progress_callback):
+        world_data = self.map_gen.generate(progress_callback)
+        return world_data
+
+class ContinentLabeler:
+    def __init__(self, world):
+        self.world = world
 
     def label_continents(self):
-        world_np = self.world.cpu().numpy()
-        self.labels, num_labels = self.label_connected_regions(world_np)
+        world_np = self.world.data.cpu().numpy()
+        labels, num_labels = self.label_connected_regions(world_np)
+        self.world.update_labels(labels)
 
         potential_names = [
             "Atlantis", "Elysium", "Arcadia", "Erewhon", "Shangri-La",
@@ -57,25 +86,25 @@ class Game:
         ]
         random.shuffle(potential_names)
 
-        self.continent_names = []
+        continent_names = []
         for label in range(1, num_labels + 1):
-            area = np.sum(self.labels == label)
-            if area > 10000:  # Only consider regions larger than a certain threshold
-                # Make sure the region isn't primarily water
-                region_elevations = world_np[self.labels == label]
-                if np.mean(region_elevations) > 0.501:  # Exclude regions with low avg elevation (water)
-                    if len(self.continent_names) < len(potential_names):
-                        name = potential_names[len(self.continent_names)]
+            area = np.sum(labels == label)
+            if area > MIN_CONTINENT_SIZE:
+                region_elevations = world_np[labels == label]
+                if np.mean(region_elevations) > ELEVATION_THRESHOLD:
+                    if len(continent_names) < len(potential_names):
+                        name = potential_names[len(continent_names)]
                     else:
-                        name = f"Continent {len(self.continent_names) + 1}"
-                    size_sq_miles = area * 0.386102  # Assuming each pixel represents 0.386102 sq miles
-                    center = self.find_continent_center(self.labels, label)
-                    self.continent_names.append((name, size_sq_miles, center))
+                        name = f"Continent {len(continent_names) + 1}"
+                    size_sq_miles = area * AREA_CONVERSION_FACTOR
+                    center = self.find_continent_center(labels, label)
+                    continent_names.append((name, size_sq_miles, center))
+
+        self.world.update_continent_names(continent_names)
 
     def label_connected_regions(self, world_np):
         from scipy.ndimage import label
-        threshold = 0.501
-        binary_world = world_np > threshold
+        binary_world = world_np > ELEVATION_THRESHOLD
         labels, num_labels = label(binary_world)
         return labels, num_labels
 
@@ -88,138 +117,46 @@ class Game:
         else:
             return None
 
-    def run(self):
-        while self.running:
-            self.handle_events()
-            self.update()
-            self.render()
-            self.clock.tick(60)
-
-    def handle_events(self):
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.running = False
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE:
-                    self.generate_world()
-            self.quit_button.handle_event(event)
-
-    def update(self):
-        pass
-
-    def render(self):
-        self.screen.fill((0, 0, 0))
-        if self.world is not None:
-            self.render_surface = self.world_surface.copy()
-            self.screen.blit(self.render_surface, (0, 0))
-        self.render_progress()
-        self.render_continent_names()
-        self.quit_button.draw(self.screen)
-        pygame.display.flip()
-
-    def render_progress(self):
-        if self.progress < 100:
-            font = pygame.font.Font(None, 36)
-            text = font.render(f'Generating World: {self.progress:.1f}%', True, (255, 255, 255))
-            self.screen.blit(text, (10, 10))
-
-    def render_continent_names(self):
-        font = pygame.font.Font(None, 24)
-        text_color = (255, 255, 255)
-        x = self.map_width - 200
-        y = 20
-        mouse_pos = pygame.mouse.get_pos()
-        hovered_continent = None
-
-        for name, size_sq_miles, center in self.continent_names:
-            text = f"{name}: {size_sq_miles:.2f} sq miles"
-            rendered_text = font.render(text, True, text_color)
-            text_rect = rendered_text.get_rect(topleft=(x, y))
-            self.screen.blit(rendered_text, text_rect)
-
-            if text_rect.collidepoint(mouse_pos):
-                hovered_continent = name
-
-            y += 30
-
-        if hovered_continent:
-            self.highlight_continent(hovered_continent)
-
-    def is_mouse_over_continent(self, mouse_pos, label_value):
-        x, y = mouse_pos
-        if 0 <= x < self.map_width and 0 <= y < self.map_height:
-            return self.labels[y, x] == label_value
-        return False
-
-    def highlight_continent(self, continent_name):
-        label_value = None
-        for name, size, center in self.continent_names:
-            if name == continent_name:
-                if center:
-                    x, y = center
-                    label_value = self.labels[y, x]
-                break
-
-        if label_value is not None:
-            mask = self.labels == label_value
-            highlight_surface = pygame.Surface((self.map_width, self.map_height), flags=pygame.SRCALPHA)
-            highlight_surface.fill((0, 0, 0, 0))  # Make it completely transparent
-
-            # Create a highlight color and blend it with the world colors
-            highlight_color = pygame.Color(255, 255, 0, 128)  # Yellow color with 50% transparency
-            highlight_surface.blit(self.world_surface, (0, 0))
-            highlight_surface.set_alpha(128, pygame.RLEACCEL)  # Set the transparency
-
-            # Apply the mask
-            highlight = np.zeros((self.map_width, self.map_height, 4), dtype=np.uint8)
-            highlight[mask] = highlight_color  # Only apply the highlight color where mask is True
-
-            highlight_surface = pygame.surfarray.make_surface(highlight[:, :, :3])
-            highlight_surface.set_alpha(128)  # Set the transparency
-
-            self.screen.blit(highlight_surface, (0, 0))
+class WorldRenderer:
+    def __init__(self, world, screen):
+        self.world = world
+        self.screen = screen
+        self.world_surface = pygame.Surface((world.width, world.height))
+        self.render_surface = self.world_surface.copy()
 
     def update_world_surface(self):
         try:
-            if self.world.shape != (self.map_width, self.map_height):
+            if self.world.data.shape != (self.world.width, self.world.height):
                 raise ValueError("Generated world shape does not match surface dimensions")
-            world_np = self.world.cpu().numpy()
+            world_np = self.world.data.cpu().numpy()
             color_array = self.generate_color_array(world_np)
             pygame.surfarray.blit_array(self.world_surface, color_array)
         except Exception as e:
             print(f"Exception occurred: {e}")
-            if hasattr(self, 'world'):
-                print(f"self.world.shape: {self.world.shape}")
+            if hasattr(self.world, 'data'):
+                print(f"self.world.data.shape: {self.world.data.shape}")
             raise
 
     def generate_color_array(self, world_np):
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         world_tensor = torch.from_numpy(world_np).to(device)
 
-        thresholds = torch.tensor([0, 0.49, 0.5, 0.6, 0.7, 0.8, 0.95], device=device)
-        colors = torch.tensor([
-            [0, 0, 128],
-            [0, 128, 255],
-            [240, 230, 140],
-            [34, 139, 34],
-            [60, 179, 113],
-            [160, 82, 45],
-            [255, 250, 250]
-        ], dtype=torch.float32, device=device)
+        thresholds = torch.tensor(WORLD_REGION_COLOR_THRESHOLDS, device=device)
+        colors = torch.tensor(WORLD_REGION_COLORS, dtype=torch.float32, device=device)
 
-        color_array = torch.zeros((self.map_width, self.map_height, 3), dtype=torch.uint8, device=device)
+        color_array = torch.zeros((self.world.width, self.world.height, 3), dtype=torch.uint8, device=device)
 
         def blend_colors(color1, color2, factor):
             return (color1 * (1 - factor) + color2 * factor).to(dtype=torch.uint8)
 
-        def smooth_elevation(elevations, kernel_size=3):
+        def smooth_elevation(elevations, kernel_size=KERNEL_SIZE):
             padding = kernel_size // 2
             padded_elevations = torch.nn.functional.pad(elevations.unsqueeze(0).unsqueeze(0), (padding, padding, padding, padding), mode='replicate').squeeze()
             kernel = torch.ones((1, 1, kernel_size, kernel_size), device=device) / (kernel_size * kernel_size)
             smoothed = torch.nn.functional.conv2d(padded_elevations.unsqueeze(0).unsqueeze(0), kernel).squeeze()
             return smoothed
 
-        smoothed_tensor = smooth_elevation(world_tensor, 3)
+        smoothed_tensor = smooth_elevation(world_tensor, KERNEL_SIZE)
 
         for i in range(len(thresholds) - 1):
             lower_threshold = thresholds[i]
@@ -237,12 +174,140 @@ class Game:
         color_array = color_array.cpu().numpy()
         return color_array
 
+    def render(self):
+        self.screen.fill(BACKGROUND_COLOR)
+        if self.world.data is not None:
+            self.render_surface = self.world_surface.copy()
+            self.screen.blit(self.render_surface, (0, 0))
+        self.render_continent_names()
+
+    def render_continent_names(self):
+        font = pygame.font.Font(None, CONTINENT_TEXT_SIZE)
+        x = self.world.width - TEXT_X_OFFSET
+        y = START_Y_OFFSET
+        mouse_pos = pygame.mouse.get_pos()
+        hovered_continent = None
+
+        for name, size_sq_miles, center in self.world.continent_names:
+            text = f"{name}: {size_sq_miles:.2f} sq miles"
+            rendered_text = font.render(text, True, TEXT_COLOR)
+            text_rect = rendered_text.get_rect(topleft=(x, y))
+            self.screen.blit(rendered_text, text_rect)
+
+            if text_rect.collidepoint(mouse_pos):
+                hovered_continent = name
+
+            y += CONTINENT_TEXT_Y_PADDING
+
+        if hovered_continent:
+            self.highlight_continent(hovered_continent)
+
+    def is_mouse_over_continent(self, mouse_pos, label_value):
+        x, y = mouse_pos
+        if 0 <= x < self.world.width and 0 <= y < self.world.height:
+            return self.world.labels[y, x] == label_value
+        return False
+
+    def highlight_continent(self, continent_name):
+        label_value = None
+        for name, size, center in self.world.continent_names:
+            if name == continent_name:
+                if center:
+                    x, y = center
+                    label_value = self.world.labels[y, x]
+                break
+
+        if label_value is not None:
+            mask = self.world.labels == label_value
+            highlight_surface = pygame.Surface((self.world.width, self.world.height), flags=pygame.SRCALPHA)
+            highlight_surface.fill((0, 0, 0, 0))
+
+            highlight_color = pygame.Color(*HIGHLIGHT_RGBA)
+            highlight_surface.blit(self.world_surface, (0, 0))
+            highlight_surface.set_alpha(HIGHLIGHT_ALPHA, pygame.RLEACCEL)
+
+            highlight = np.zeros((self.world.width, self.world.height, 4), dtype=np.uint8)
+            highlight[mask] = highlight_color
+
+            highlight_surface = pygame.surfarray.make_surface(highlight[:, :, :3])
+            highlight_surface.set_alpha(HIGHLIGHT_ALPHA)
+
+            self.screen.blit(highlight_surface, (0, 0))
+
+class Game:
+    def __init__(self, screen, map_width, map_height):
+        self.screen = screen
+        self.map_width = map_width
+        self.map_height = map_height
+        self.clock = pygame.time.Clock()
+        self.running = True
+        self.world = World(map_width, map_height)
+        self.world_generator = WorldGenerator(map_width, map_height, scale=MAP_SCALE, octaves=MAP_OCTAVES)
+        self.continent_labeler = ContinentLabeler(self.world)
+        self.world_renderer = WorldRenderer(self.world, self.screen)
+        self.progress = 0
+        self.generate_world()
+
+        self.quit_button = Button(
+            rect=(map_width - BUTTON_WIDTH - BUTTON_MARGIN, map_height - BUTTON_HEIGHT - BUTTON_MARGIN, BUTTON_WIDTH, BUTTON_HEIGHT),
+            color=QUIT_BUTTON_COLOR,
+            hover_color=QUIT_BUTTON_HOVER_COLOR,
+            text='Quit',
+            font=pygame.font.Font(None, QUIT_TEXT_SIZE),
+            text_color=TEXT_COLOR,
+            callback=self.quit_game
+        )
+
+    def generate_world(self):
+        self.progress = 0
+        threading.Thread(target=self.run_map_generation).start()
+
+    def run_map_generation(self):
+        world_data = self.world_generator.generate(self.update_progress)
+        self.world.update_data(world_data)
+        self.continent_labeler.label_continents()
+        self.world_renderer.update_world_surface()
+
+    def update_progress(self, progress):
+        self.progress = progress
+
+    def run(self):
+        while self.running:
+            self.handle_events()
+            self.update()
+            self.render()
+            self.clock.tick(FPS)
+
+    def handle_events(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    self.generate_world()
+            self.quit_button.handle_event(event)
+
+    def update(self):
+        pass
+
+    def render(self):
+        self.world_renderer.render()
+        self.render_progress()
+        self.quit_button.draw(self.screen)
+        pygame.display.flip()
+
+    def render_progress(self):
+        if self.progress < 100:
+            font = pygame.font.Font(None, QUIT_TEXT_SIZE)
+            text = font.render(f'Generating World: {self.progress:.1f}%', True, TEXT_COLOR)
+            self.screen.blit(text, (PROGRESS_TEXT_X, PROGRESS_TEXT_Y))
+
     def quit_game(self):
         self.running = False
 
 if __name__ == "__main__":
     pygame.init()
-    screen = pygame.display.set_mode((1280, 720))
-    game = Game(screen, 1280, 720)
+    screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+    game = Game(screen, WINDOW_WIDTH, WINDOW_HEIGHT)
     game.run()
     pygame.quit()
