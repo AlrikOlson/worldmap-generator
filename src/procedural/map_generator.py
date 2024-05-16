@@ -37,7 +37,7 @@ class MapGenerator:
         world = self.erosion_processor.apply_hydraulic_erosion(world, progress_callback)
         
         world_np = world.cpu().numpy()
-        world_np = gaussian_filter(world_np, sigma=1.5)
+        world_np = gaussian_filter(world_np, sigma=1.7)
         world = torch.tensor(world_np).to(self.device)
         
         # Final normalization

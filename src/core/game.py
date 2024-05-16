@@ -33,12 +33,14 @@ AREA_CONVERSION_FACTOR = 0.386102
 KERNEL_SIZE = 3
 FPS = 60
 
+SHALLOW_DEEP_BLEND_FACTOR = 25.0  # You can adjust this value to control the smoothness
+
 # Color thresholds
 DEEP_WATER_THRESHOLD = 0.0
-SHALLOW_WATER_THRESHOLD = 0.6  # Increased threshold to reduce shallow water
-BEACH_THRESHOLD = 0.61
-GRASSLAND_THRESHOLD = 0.65
-FOREST_THRESHOLD = 0.75
+SHALLOW_WATER_THRESHOLD = 0.7  # Lowered to create more deep water and abrupt transition to shallow water
+BEACH_THRESHOLD = 0.71
+GRASSLAND_THRESHOLD = 0.75
+FOREST_THRESHOLD = 0.8
 MOUNTAIN_THRESHOLD = 0.9
 SNOW_THRESHOLD = 0.98
 
@@ -190,7 +192,13 @@ class WorldRenderer:
             lower_threshold = thresholds[i]
             upper_threshold = thresholds[i + 1]
             mask = (smoothed_tensor >= lower_threshold) & (smoothed_tensor < upper_threshold)
+
             blend_factor = (smoothed_tensor[mask] - lower_threshold) / (upper_threshold - lower_threshold)
+
+            # Smoother blend transition for shallow water
+            if i == 0:  # Deep to shallow water transition
+                blend_factor = torch.pow(blend_factor, SHALLOW_DEEP_BLEND_FACTOR)  # Use the constant
+
             color1 = colors[i]
             color2 = colors[i + 1]
             blended_colors = blend_colors(color1, color2, blend_factor.unsqueeze(-1))
@@ -201,7 +209,7 @@ class WorldRenderer:
 
         color_array = color_array.cpu().numpy()
         return color_array
-
+    
     def render(self):
         self.screen.fill(BACKGROUND_COLOR)
         if self.world.data is not None:
