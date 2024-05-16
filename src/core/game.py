@@ -5,6 +5,7 @@ import numpy as np
 import torch
 from procedural.map_generator import MapGenerator
 from ui.button import Button
+import random
 
 class Game:
     def __init__(self, screen, map_width, map_height):
@@ -18,6 +19,8 @@ class Game:
         self.progress = 0
         self.world_surface = pygame.Surface((map_width, map_height))
         self.render_surface = self.world_surface.copy()
+        self.continent_names = []
+        self.labels = None
         self.generate_world()
 
         button_width, button_height = 100, 50
@@ -33,14 +36,54 @@ class Game:
 
     def generate_world(self):
         self.progress = 0
+        self.continent_names = []
         threading.Thread(target=self.run_map_generation).start()
 
     def run_map_generation(self):
         self.world = self.map_gen.generate(self.update_progress)
+        self.label_continents()
         self.update_world_surface()
 
     def update_progress(self, progress):
         self.progress = progress
+
+    def label_continents(self):
+        world_np = self.world.cpu().numpy()
+        self.labels, num_labels = self.label_connected_regions(world_np)
+
+        potential_names = [
+            "Atlantis", "Elysium", "Arcadia", "Erewhon", "Shangri-La",
+            "Avalon", "El Dorado", "Valhalla", "Utopia", "Narnia"
+        ]
+        random.shuffle(potential_names)
+
+        continent_areas = []
+        for label in range(1, num_labels + 1):
+            area = np.sum(self.labels == label)
+            if area > 500:  # Only consider regions larger than a certain threshold
+                continent_areas.append((label, area))
+
+        continent_areas.sort(key=lambda x: x[1], reverse=True)  # Sort by area size
+
+        for idx, (label, _) in enumerate(continent_areas):
+            if idx < len(potential_names):
+                name = potential_names[idx]
+            else:
+                name = f"Continent {idx + 1}"
+            center = self.find_continent_center(self.labels, label)
+            self.continent_names.append((name, center))
+
+    def label_connected_regions(self, world_np):
+        from scipy.ndimage import label
+        threshold = 0.05  # Adjust this threshold based on your world elevation data
+        binary_world = world_np > threshold
+        labels, num_labels = label(binary_world)
+        return labels, num_labels
+
+    def find_continent_center(self, labels, label_value):
+        positions = np.argwhere(labels == label_value)
+        center = positions.mean(axis=0).astype(int)
+        return center[1], center[0]  # Return in (x, y) format
 
     def run(self):
         while self.running:
@@ -48,7 +91,7 @@ class Game:
             self.update()
             self.render()
             self.clock.tick(60)
-    
+
     def handle_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -57,16 +100,17 @@ class Game:
                 if event.key == pygame.K_SPACE:
                     self.generate_world()
             self.quit_button.handle_event(event)
-    
+
     def update(self):
         pass
-    
+
     def render(self):
         self.screen.fill((0, 0, 0))
         if self.world is not None:
             self.render_surface = self.world_surface.copy()
             self.screen.blit(self.render_surface, (0, 0))
         self.render_progress()
+        self.render_continent_names()
         self.quit_button.draw(self.screen)
         pygame.display.flip()
 
@@ -75,6 +119,47 @@ class Game:
             font = pygame.font.Font(None, 36)
             text = font.render(f'Generating World: {self.progress:.1f}%', True, (255, 255, 255))
             self.screen.blit(text, (10, 10))
+
+    def render_continent_names(self):
+        font = pygame.font.Font(None, 36)
+        mouse_pos = pygame.mouse.get_pos()
+        hovered_continent = None
+
+        for name, (x, y) in self.continent_names:
+            text = font.render(name, True, (255, 255, 255))
+            text_rect = text.get_rect(center=(x, y))
+            self.screen.blit(text, text_rect)
+
+            if text_rect.collidepoint(mouse_pos):
+                hovered_continent = name
+
+        if hovered_continent:
+            self.highlight_continent(hovered_continent)
+
+    def highlight_continent(self, continent_name):
+        label_value = None
+        for name, (x, y) in self.continent_names:
+            if name == continent_name:
+                label_value = self.labels[y, x]
+                break
+
+        mask = self.labels == label_value
+        highlight_surface = pygame.Surface((self.map_width, self.map_height), flags=pygame.SRCALPHA)
+        highlight_surface.fill((0, 0, 0, 0))  # Make it completely transparent
+
+        # Create a highlight color and blend it with the world colors
+        highlight_color = pygame.Color(255, 255, 0, 128)  # Yellow color with 50% transparency
+        highlight_surface.blit(self.world_surface, (0, 0))
+        highlight_surface.set_alpha(128, pygame.RLEACCEL)  # Set the transparency
+
+        # Apply the mask
+        highlight = np.zeros((self.map_width, self.map_height, 4), dtype=np.uint8)
+        highlight[mask] = highlight_color  # Only apply the highlight color where mask is True
+
+        highlight_surface = pygame.surfarray.make_surface(highlight[:, :, :3])
+        highlight_surface.set_alpha(128)  # Set the transparency
+
+        self.screen.blit(highlight_surface, (0, 0))
 
     def update_world_surface(self):
         try:
@@ -92,18 +177,8 @@ class Game:
     def generate_color_array(self, world_np):
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         world_tensor = torch.from_numpy(world_np).to(device)
-        
-        thresholds = torch.tensor([0.01, 0.02, 0.03, 0.1, 0.6, 0.7, 0.8], device=device)
-        # threshold intervals:
-        # Min - [0]: Deep Water
-        # [0] - [1]: Shallow Water
-        # [1] - [2]: Sand
-        # [2] - [3]: Grass
-        # [3] - [4]: Forest
-        # [4] - [5]: Mountain
-        # [5] - [6]: Snow
-        # [6] - Max: Rock
 
+        thresholds = torch.tensor([0.01, 0.02, 0.03, 0.1, 0.6, 0.7, 0.8], device=device)
         colors = torch.tensor([
             [0, 0, 128],     # Deep Water
             [0, 128, 255],   # Shallow Water
@@ -114,7 +189,7 @@ class Game:
             [255, 250, 250], # Snow
             [128, 128, 128], # Rock
         ], dtype=torch.float32, device=device)
-        
+
         color_array = torch.zeros((self.map_width, self.map_height, 3), dtype=torch.uint8, device=device)
 
         def blend_colors(color1, color2, factor):
@@ -137,7 +212,7 @@ class Game:
             [40, 140, 80],
             [120, 60, 30],
             [220, 200, 200],
-            [80, 80, 80], 
+            [80, 80, 80],
         ], dtype=torch.float32, device=device)
 
         for i in range(len(thresholds) - 1):
@@ -155,7 +230,6 @@ class Game:
 
         color_array = color_array.cpu().numpy()
         return color_array
-
 
     def quit_game(self):
         self.running = False
