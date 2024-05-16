@@ -33,27 +33,27 @@ AREA_CONVERSION_FACTOR = 0.386102
 KERNEL_SIZE = 3
 FPS = 60
 
-SHALLOW_DEEP_BLEND_FACTOR = 25.0  # You can adjust this value to control the smoothness
+SHALLOW_DEEP_BLEND_FACTOR = 35.0  # You can adjust this value to control the smoothness
 
 # Threshold for land/sea
 LAND_SEA_THRESHOLD = 0.7
 
 # Absolute thresholds for water
 DEEP_WATER_THRESHOLD = 0.0
-SHALLOW_WATER_THRESHOLD = 0.65  # Adjust as needed
+SHALLOW_WATER_THRESHOLD = 0.67  # Adjust as needed
 
 # Percentiles for land regions
-GRASSLAND_PERCENTILE = 0.2
+GRASSLAND_PERCENTILE = 0.1
 FOREST_PERCENTILE = 0.6
-MOUNTAIN_PERCENTILE = 0.9
+MOUNTAIN_PERCENTILE = 0.95
 SNOW_PERCENTILE = 0.99
 
 # Realistic colors
 DEEP_WATER_COLOR = [0, 34, 102]  # Dark Blue
-SHALLOW_WATER_COLOR = [102, 178, 255]  # Light Blue
-BEACH_COLOR = [255, 229, 204]  # Sandy Yellow
-GRASSLAND_COLOR = [124, 252, 0]  # Light Green
-FOREST_COLOR = [34, 139, 34]  # Dark Green
+SHALLOW_WATER_COLOR = [51, 153, 204]  # Slightly darker Light Blue
+BEACH_COLOR = [210, 184, 159]  # Slightly darker Sandy Yellow
+GRASSLAND_COLOR = [34, 139, 34]  # Dark Green
+FOREST_COLOR = [85, 107, 47]  # Darker Green
 MOUNTAIN_COLOR = [169, 169, 169]  # Gray
 SNOW_COLOR = [255, 255, 255]  # White
 
