@@ -34,17 +34,17 @@ FPS = 60
 SHALLOW_DEEP_BLEND_FACTOR = 35.0  # You can adjust this value to control the smoothness
 
 # Threshold for land/sea
-LAND_SEA_THRESHOLD = 0.7
+LAND_SEA_THRESHOLD = 0.6
 
-# Absolute thresholds for water
-DEEP_WATER_THRESHOLD = 0.0
-SHALLOW_WATER_THRESHOLD = 0.67  # Adjust as needed
+# Percentiles for water
+DEEP_WATER_PERCENTILE = 0.0
+SHALLOW_WATER_PERCENTILE = 0.9
 
 # Percentiles for land regions
-GRASSLAND_PERCENTILE = 0.1
-FOREST_PERCENTILE = 0.6
-MOUNTAIN_PERCENTILE = 0.95
-SNOW_PERCENTILE = 0.99
+GRASSLAND_PERCENTILE = 0.05
+FOREST_PERCENTILE = 0.9
+MOUNTAIN_PERCENTILE = 0.99
+SNOW_PERCENTILE = 0.999
 
 # Realistic colors
 DEEP_WATER_COLOR = [0, 34, 102]  # Dark Blue
@@ -165,14 +165,16 @@ class WorldRenderer:
         land_mask = world_tensor >= LAND_SEA_THRESHOLD
         land_elevations = world_tensor[land_mask]
 
+        deep_water_threshold = np.percentile(world_np[world_np < LAND_SEA_THRESHOLD], DEEP_WATER_PERCENTILE * 100)
+        shallow_water_threshold = np.percentile(world_np[world_np < LAND_SEA_THRESHOLD], SHALLOW_WATER_PERCENTILE * 100)
         grassland_threshold = np.percentile(land_elevations.cpu().numpy(), GRASSLAND_PERCENTILE * 100)
         forest_threshold = np.percentile(land_elevations.cpu().numpy(), FOREST_PERCENTILE * 100)
         mountain_threshold = np.percentile(land_elevations.cpu().numpy(), MOUNTAIN_PERCENTILE * 100)
         snow_threshold = np.percentile(land_elevations.cpu().numpy(), SNOW_PERCENTILE * 100)
 
         thresholds = torch.tensor([
-            DEEP_WATER_THRESHOLD,
-            SHALLOW_WATER_THRESHOLD,
+            deep_water_threshold,
+            shallow_water_threshold,
             LAND_SEA_THRESHOLD,
             grassland_threshold,
             forest_threshold,
