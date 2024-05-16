@@ -1,4 +1,3 @@
-# game.py
 import pygame
 import threading
 import numpy as np
@@ -6,6 +5,7 @@ import torch
 from procedural.map_generator import MapGenerator
 from ui.button import Button
 import random
+from scipy.ndimage import measurements
 
 class Game:
     def __init__(self, screen, map_width, map_height):
@@ -57,33 +57,36 @@ class Game:
         ]
         random.shuffle(potential_names)
 
-        continent_areas = []
+        self.continent_names = []
         for label in range(1, num_labels + 1):
             area = np.sum(self.labels == label)
-            if area > 500:  # Only consider regions larger than a certain threshold
-                continent_areas.append((label, area))
-
-        continent_areas.sort(key=lambda x: x[1], reverse=True)  # Sort by area size
-
-        for idx, (label, _) in enumerate(continent_areas):
-            if idx < len(potential_names):
-                name = potential_names[idx]
-            else:
-                name = f"Continent {idx + 1}"
-            center = self.find_continent_center(self.labels, label)
-            self.continent_names.append((name, center))
+            if area > 1000:  # Only consider regions larger than a certain threshold
+                # Make sure the region isn't primarily water
+                region_elevations = world_np[self.labels == label]
+                if np.mean(region_elevations) > 0.04:  # Exclude regions with low avg elevation (water)
+                    if len(self.continent_names) < len(potential_names):
+                        name = potential_names[len(self.continent_names)]
+                    else:
+                        name = f"Continent {len(self.continent_names) + 1}"
+                    size_sq_miles = area * 0.386102  # Assuming each pixel represents 0.386102 sq miles
+                    center = self.find_continent_center(self.labels, label)
+                    self.continent_names.append((name, size_sq_miles, center))
 
     def label_connected_regions(self, world_np):
         from scipy.ndimage import label
-        threshold = 0.05  # Adjust this threshold based on your world elevation data
+        threshold = 0.04  # This excludes deep water (below 0.01) and shallow water (0.01 - 0.03)
         binary_world = world_np > threshold
         labels, num_labels = label(binary_world)
         return labels, num_labels
 
     def find_continent_center(self, labels, label_value):
-        positions = np.argwhere(labels == label_value)
-        center = positions.mean(axis=0).astype(int)
-        return center[1], center[0]  # Return in (x, y) format
+        rows, cols = np.where(labels == label_value)
+        if len(rows) > 0 and len(cols) > 0:
+            center_y = int(np.mean(rows))
+            center_x = int(np.mean(cols))
+            return center_x, center_y
+        else:
+            return None
 
     def run(self):
         while self.running:
@@ -121,45 +124,60 @@ class Game:
             self.screen.blit(text, (10, 10))
 
     def render_continent_names(self):
-        font = pygame.font.Font(None, 36)
+        font = pygame.font.Font(None, 24)
+        text_color = (255, 255, 255)
+        x = self.map_width - 200
+        y = 20
         mouse_pos = pygame.mouse.get_pos()
         hovered_continent = None
 
-        for name, (x, y) in self.continent_names:
-            text = font.render(name, True, (255, 255, 255))
-            text_rect = text.get_rect(center=(x, y))
-            self.screen.blit(text, text_rect)
+        for name, size_sq_miles, center in self.continent_names:
+            text = f"{name}: {size_sq_miles:.2f} sq miles"
+            rendered_text = font.render(text, True, text_color)
+            text_rect = rendered_text.get_rect(topleft=(x, y))
+            self.screen.blit(rendered_text, text_rect)
 
             if text_rect.collidepoint(mouse_pos):
                 hovered_continent = name
 
+            y += 30
+
         if hovered_continent:
             self.highlight_continent(hovered_continent)
 
+    def is_mouse_over_continent(self, mouse_pos, label_value):
+        x, y = mouse_pos
+        if 0 <= x < self.map_width and 0 <= y < self.map_height:
+            return self.labels[y, x] == label_value
+        return False
+
     def highlight_continent(self, continent_name):
         label_value = None
-        for name, (x, y) in self.continent_names:
+        for name, size, center in self.continent_names:
             if name == continent_name:
-                label_value = self.labels[y, x]
+                if center:
+                    x, y = center
+                    label_value = self.labels[y, x]
                 break
 
-        mask = self.labels == label_value
-        highlight_surface = pygame.Surface((self.map_width, self.map_height), flags=pygame.SRCALPHA)
-        highlight_surface.fill((0, 0, 0, 0))  # Make it completely transparent
+        if label_value is not None:
+            mask = self.labels == label_value
+            highlight_surface = pygame.Surface((self.map_width, self.map_height), flags=pygame.SRCALPHA)
+            highlight_surface.fill((0, 0, 0, 0))  # Make it completely transparent
 
-        # Create a highlight color and blend it with the world colors
-        highlight_color = pygame.Color(255, 255, 0, 128)  # Yellow color with 50% transparency
-        highlight_surface.blit(self.world_surface, (0, 0))
-        highlight_surface.set_alpha(128, pygame.RLEACCEL)  # Set the transparency
+            # Create a highlight color and blend it with the world colors
+            highlight_color = pygame.Color(255, 255, 0, 128)  # Yellow color with 50% transparency
+            highlight_surface.blit(self.world_surface, (0, 0))
+            highlight_surface.set_alpha(128, pygame.RLEACCEL)  # Set the transparency
 
-        # Apply the mask
-        highlight = np.zeros((self.map_width, self.map_height, 4), dtype=np.uint8)
-        highlight[mask] = highlight_color  # Only apply the highlight color where mask is True
+            # Apply the mask
+            highlight = np.zeros((self.map_width, self.map_height, 4), dtype=np.uint8)
+            highlight[mask] = highlight_color  # Only apply the highlight color where mask is True
 
-        highlight_surface = pygame.surfarray.make_surface(highlight[:, :, :3])
-        highlight_surface.set_alpha(128)  # Set the transparency
+            highlight_surface = pygame.surfarray.make_surface(highlight[:, :, :3])
+            highlight_surface.set_alpha(128)  # Set the transparency
 
-        self.screen.blit(highlight_surface, (0, 0))
+            self.screen.blit(highlight_surface, (0, 0))
 
     def update_world_surface(self):
         try:
