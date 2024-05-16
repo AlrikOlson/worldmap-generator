@@ -1,0 +1,4 @@
+pygame
+numpy
+noise   # For Perlin noise generation
+pillow  # For image manipulations, if needed
