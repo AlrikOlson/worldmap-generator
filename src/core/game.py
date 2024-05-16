@@ -1,5 +1,6 @@
 # src/core/game.py
 import pygame
+import threading
 from procedural.map_generator import MapGenerator  # Relative import
 
 class Game:
@@ -8,9 +9,21 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
         self.map_gen = MapGenerator(1280, 720, scale=200.0, octaves=6)  # Example dimensions and parameters
-        self.world = self.map_gen.generate()  # Initial map generation
+        self.world = None  # Initial map is None until generated
+        self.progress = 0  # Progress indicator
         self.world_surface = pygame.Surface((1280, 720))  # Surface for the map
-        self.update_world_surface()  # Convert the initial world to the surface
+        self.generate_world()  # Start generating the world
+
+    def generate_world(self):
+        self.progress = 0
+        threading.Thread(target=self.run_map_generation).start()  # Run map generation in a separate thread
+
+    def run_map_generation(self):
+        self.world = self.map_gen.generate(self.update_progress)
+        self.update_world_surface()
+
+    def update_progress(self, progress):
+        self.progress = progress
 
     def run(self):
         while self.running:
@@ -25,8 +38,7 @@ class Game:
                 self.running = False
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:  # Check if the spacebar is pressed
-                    self.world = self.map_gen.regenerate()  # Regenerate the map with a new seed
-                    self.update_world_surface()  # Update the surface with the new map
+                    self.generate_world()  # Regenerate the map with a new seed
     
     def update(self):
         # Update game state
@@ -34,9 +46,17 @@ class Game:
     
     def render(self):
         self.screen.fill((0, 0, 0))
-        self.screen.blit(self.world_surface, (0, 0))  # Blit the world surface to the screen
+        if self.world is not None:
+            self.screen.blit(self.world_surface, (0, 0))  # Blit the world surface to the screen
+        self.render_progress()
         pygame.display.flip()
-    
+
+    def render_progress(self):
+        if self.progress < 100:
+            font = pygame.font.Font(None, 36)
+            text = font.render(f'Generating World: {self.progress:.1f}%', True, (255, 255, 255))
+            self.screen.blit(text, (10, 10))
+
     def update_world_surface(self):
         array = pygame.surfarray.pixels3d(self.world_surface)  # Get the pixel array of the surface
         for x in range(self.world.shape[0]):
