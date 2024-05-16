@@ -1,6 +1,7 @@
 import torch
 import random
 import numpy as np
+from scipy.ndimage import gaussian_filter  # Add this import
 
 class MapGenerator:
     def __init__(self, width, height, scale=100.0, octaves=6, persistence=0.5, lacunarity=2.0, seed=None, device='cuda'):
@@ -25,6 +26,9 @@ class MapGenerator:
         world = self.generate_perlin_noise(self.width, self.height, self.scale, self.octaves, self.persistence, self.lacunarity)
         world = (world + 1) / 2  # Normalizing the noise
         
+        # Apply Gaussian Blur for smoothing
+        world = torch.tensor(gaussian_filter(world.cpu().numpy(), sigma=3)).to(self.device)  # Move back to GPU
+
         if progress_callback:
             progress_callback(40.0)  # Progress update after initial noise generation
 

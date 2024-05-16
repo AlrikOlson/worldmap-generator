@@ -96,8 +96,8 @@ class Game:
         color_array = np.zeros((1280, 720, 3), dtype=np.uint8)  # Corrected dimensions
         print(f"Initialized color_array shape: {color_array.shape}, dtype: {color_array.dtype}")
 
-        # Define thresholds and colors
-        thresholds = [0.15, 0.25, 0.3, 0.55, 0.75, 0.85]
+        # Define thresholds and colors, adjusted for smoother transitions
+        thresholds = [0.2, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85]
         colors = [
             (0, 0, 128),      # Deep water
             (0, 128, 255),    # Shallow water
