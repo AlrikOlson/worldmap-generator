@@ -29,9 +29,9 @@ class MapGenerator:
                 normalized_value = (value + 1) / 2  # Normalize to [0, 1]
                 world[x][y] = normalized_value
 
-        # Add rivers
+        # Additional features/rivers can be added
         self.add_rivers(world)
-        
+
         return world
 
     def regenerate(self, seed=None):
@@ -41,7 +41,6 @@ class MapGenerator:
     def add_rivers(self, world):
         num_rivers = 5  # Number of rivers
         river_width = 3  # Width of the river in cells
-
         for _ in range(num_rivers):
             start_x, start_y = self.find_high_point(world)
             self.carve_river(world, start_x, start_y, river_width)
@@ -61,7 +60,7 @@ class MapGenerator:
     def carve_river(self, world, x, y, width):
         # Carve the river by lowering the elevation
         directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]  # Left, right, up, down
-        river_length = 100  # Length of the river
+        river_length = 100  # Increased length of the river
 
         for _ in range(river_length):
             for i in range(-width, width):
@@ -70,17 +69,16 @@ class MapGenerator:
                         world[x + i][y + j] = 0.0  # Set elevation to water level
 
             # Move to the next cell in a random direction
-            direction = random.choice(directions)
+            possible_directions = []
+            for direction in directions:
+                nx, ny = x + direction[0], y + direction[1]
+                if 0 <= nx < self.width and 0 <= ny < self.height:
+                    possible_directions.append(direction)
+            
+            direction = random.choice(possible_directions)
             x += direction[0]
             y += direction[1]
 
             # Ensure the river doesn't go out of bounds
             if not (0 <= x < self.width and 0 <= y < self.height):
                 break
-
-        # Optionally, add turbulence to the river path
-        for _ in range(river_length // 10):
-            x += random.randint(-1, 1)
-            y += random.randint(-1, 1)
-            if 0 <= x < self.width and 0 <= y < self.height:
-                world[x][y] = 0.0
