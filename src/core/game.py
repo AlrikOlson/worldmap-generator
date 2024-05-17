@@ -89,7 +89,7 @@ class WorldGenerator:
         self.map_gen = MapGenerator(width, height, scale=scale, octaves=octaves)
 
     def generate(self, progress_callback):
-        world_data = self.map_gen.generate(progress_callback)
+        world_data = self.map_gen.generate(progress_callback).to(torch.float32)
         return world_data
 
 class ContinentLabeler:
@@ -97,7 +97,7 @@ class ContinentLabeler:
         self.world = world
 
     def label_continents(self):
-        world_np = self.world.data.cpu().numpy()
+        world_np = self.world.data.cpu().numpy().astype(np.float32)
         labels, num_labels = self.label_connected_regions(world_np)
         self.world.update_labels(labels)
 
@@ -149,7 +149,7 @@ class WorldRenderer:
         try:
             if self.world.data.shape != (self.world.width, self.world.height):
                 raise ValueError("Generated world shape does not match surface dimensions")
-            world_np = self.world.data.cpu().numpy()
+            world_np = self.world.data.cpu().numpy().astype(np.float32)  # Ensure data is float32
             color_array = self.generate_color_array(world_np)
             pygame.surfarray.blit_array(self.world_surface, color_array)
         except Exception as e:
@@ -159,8 +159,14 @@ class WorldRenderer:
             raise
 
     def generate_color_array(self, world_np):
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        world_tensor = torch.from_numpy(world_np).to(device)
+        if torch.backends.mps.is_available():
+            device = torch.device('mps')
+        elif torch.cuda.is_available():
+            device = torch.device('cuda')
+        else:
+            device = torch.device('cpu')
+
+        world_tensor = torch.from_numpy(world_np).to(device).to(torch.float32)
 
         land_mask = world_tensor >= LAND_SEA_THRESHOLD
         land_elevations = world_tensor[land_mask]
@@ -180,7 +186,7 @@ class WorldRenderer:
             forest_threshold,
             mountain_threshold,
             snow_threshold
-        ], device=device)
+        ], device=device, dtype=torch.float32)
 
         colors = torch.tensor(WORLD_REGION_COLORS, dtype=torch.float32, device=device)
 
@@ -196,7 +202,7 @@ class WorldRenderer:
             smoothed = torch.nn.functional.conv2d(padded_elevations.unsqueeze(0).unsqueeze(0), kernel).squeeze()
             return smoothed
 
-        smoothed_tensor = smooth_elevation(world_tensor, KERNEL_SIZE)
+        smoothed_tensor = smooth_elevation(world_tensor.to(torch.float32), KERNEL_SIZE)
 
         for i in range(len(thresholds) - 1):
             lower_threshold = thresholds[i]
@@ -352,3 +358,4 @@ class Game:
 
     def quit_game(self):
         self.running = False
+

@@ -18,7 +18,7 @@ def visualize_steps(steps, step_names):
     plt.show()
 
 class MapGenerator:
-    def __init__(self, width, height, scale=100.0, octaves=6, persistence=0.5, lacunarity=2.0, seed=None, device='cuda'):
+    def __init__(self, width, height, scale=100.0, octaves=6, persistence=0.5, lacunarity=2.0, seed=None):
         self.width = width
         self.height = height
         self.scale = scale
@@ -26,7 +26,14 @@ class MapGenerator:
         self.persistence = persistence
         self.lacunarity = lacunarity
         self.seed = seed if seed is not None else random.randint(0, 1000)
-        self.device = torch.device(device)
+        
+        if torch.backends.mps.is_available():
+            self.device = torch.device('mps')
+        elif torch.cuda.is_available():
+            self.device = torch.device('cuda')
+        else:
+            self.device = torch.device('cpu')
+        
         self.noise_generator = PerlinNoiseGenerator(width, height, scale, octaves, persistence, lacunarity, self.device)
         self.geological_processor = GeologicalProcessor(width, height, self.device, 3)
         self.erosion_processor = ErosionProcessor(width, height, self.device)
@@ -76,17 +83,12 @@ class MapGenerator:
         if progress_callback:
             progress_callback(90.0, "Final normalization and visualization")
         
-        visualize_steps(steps, step_names)
+        # visualize_steps(steps, step_names)
         
         if progress_callback:
             progress_callback(100.0, "Map generation complete")
         
         return world
-
-    def regenerate(self, seed=None, progress_callback=None):
-        self.seed = seed if seed is not None else random.randint(0, 1000)
-        return self.generate(progress_callback)
-
 
 class PerlinNoiseGenerator:
     def __init__(self, width, height, scale, octaves, persistence, lacunarity, device):
@@ -144,7 +146,6 @@ class PerlinNoiseGenerator:
     def gradient(self, x, y):
         random = torch.sin(x * 12.9898 + y * 78.233) * 43758.5453123
         return random.frac() * 2 - 1
-
 
 class GeologicalProcessor:
     def __init__(self, width, height, device, num_plates=10):
@@ -235,7 +236,6 @@ class GeologicalProcessor:
         eroded_world -= 0.01 * (neighbors > 0).float()
 
         return eroded_world
-
 
 class ErosionProcessor:
     def __init__(self, width, height, device):
