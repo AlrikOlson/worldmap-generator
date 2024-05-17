@@ -28,7 +28,7 @@ class MapGenerator:
         self.seed = seed if seed is not None else random.randint(0, 1000)
         self.device = torch.device(device)
         self.noise_generator = PerlinNoiseGenerator(width, height, scale, octaves, persistence, lacunarity, self.device)
-        self.geological_processor = GeologicalProcessor(width, height, self.device)
+        self.geological_processor = GeologicalProcessor(width, height, self.device, 3)
         self.erosion_processor = ErosionProcessor(width, height, self.device)
 
     def generate(self, progress_callback=None):
@@ -180,24 +180,20 @@ class GeologicalProcessor:
         sobel_x = sobel(world_np, axis=0)
         sobel_y = sobel(world_np, axis=1)
         magnitude = np.hypot(sobel_x, sobel_y)
-        boundaries = (magnitude > magnitude.mean()).astype(np.float32)
-        return torch.tensor(boundaries, device=self.device)
+        boundaries = torch.tensor(magnitude > magnitude.mean(), dtype=torch.float32, device=self.device)
+        return boundaries
 
     def assign_plates(self, boundaries):
-        boundaries_np = boundaries.cpu().numpy()
-        labeled_boundaries, num_features = self.label_boundaries(boundaries_np)
-        return torch.tensor(labeled_boundaries, dtype=torch.int32, device=self.device), num_features
-
-    def label_boundaries(self, boundaries):
         from scipy.ndimage import label
-        labeled_array, num_features = label(boundaries == 0)
-        return labeled_array, num_features
+        boundaries_np = boundaries.cpu().numpy()
+        labeled_boundaries, num_features = label(boundaries_np == 0)
+        return torch.tensor(labeled_boundaries, dtype=torch.int32, device=self.device), num_features
 
     def simulate_tectonic_plates(self, world, plates, progress_callback=None):
         plate_ids, num_plates = plates
-        velocities = [(random.uniform(-0.1, 0.1), random.uniform(-0.1, 0.1)) for _ in range(num_plates)]
+        velocities = torch.tensor([(random.uniform(-0.1, 0.1), random.uniform(-0.1, 0.1)) for _ in range(num_plates)], device=self.device)
 
-        for step in range(10):
+        for step in range(2):
             for plate_id in range(1, num_plates + 1):
                 velocity = velocities[plate_id - 1]
                 plate_mask = (plate_ids == plate_id).float()
