@@ -2,7 +2,20 @@ import torch
 import random
 import numpy as np
 from scipy.ndimage import gaussian_filter
+import matplotlib.pyplot as plt
+from scipy.ndimage import sobel
 
+def visualize_steps(steps, step_names):
+    num_steps = len(steps)
+    fig, axes = plt.subplots(1, num_steps, figsize=(15, 5))
+    for i, (world, step_name) in enumerate(zip(steps, step_names)):
+        world_np = world.cpu().numpy()
+        ax = axes[i]
+        ax.imshow(world_np, cmap='terrain')
+        ax.set_title(step_name)
+        ax.axis('off')
+    plt.tight_layout()
+    plt.show()
 
 class MapGenerator:
     def __init__(self, width, height, scale=100.0, octaves=6, persistence=0.5, lacunarity=2.0, seed=None, device='cuda'):
@@ -23,25 +36,50 @@ class MapGenerator:
         random.seed(self.seed)
         torch.manual_seed(self.seed)
         
+        steps = []
+        step_names = []
+        
         if progress_callback:
-            progress_callback(5.0)
+            progress_callback(5.0, "Generating initial Perlin noise")
         
         world = self.noise_generator.generate_perlin_noise()
         world = (world + 1) / 2  # Normalize the noise
+        steps.append(world.clone())
+        step_names.append('Initial Noise')
         
         if progress_callback:
-            progress_callback(40.0)
+            progress_callback(20.0, "Applying geological features")
         
         world = self.geological_processor.apply_geological_features(world, progress_callback)
+        steps.append(world.clone())
+        step_names.append('After Geological Features')
+        
+        if progress_callback:
+            progress_callback(60.0, "Applying hydraulic erosion")
         
         world = self.erosion_processor.apply_hydraulic_erosion(world, progress_callback)
+        steps.append(world.clone())
+        step_names.append('After Hydraulic Erosion')
+        
+        if progress_callback:
+            progress_callback(80.0, "Applying Gaussian filter")
         
         world_np = world.cpu().numpy()
         world_np = gaussian_filter(world_np, sigma=1.7)
         world = torch.tensor(world_np).to(self.device)
+        steps.append(world.clone())
+        step_names.append('After Gaussian Filter')
         
         # Final normalization
         world = (world - world.min()) / (world.max() - world.min())
+        
+        if progress_callback:
+            progress_callback(90.0, "Final normalization and visualization")
+        
+        visualize_steps(steps, step_names)
+        
+        if progress_callback:
+            progress_callback(100.0, "Map generation complete")
         
         return world
 
@@ -109,36 +147,97 @@ class PerlinNoiseGenerator:
 
 
 class GeologicalProcessor:
-    def __init__(self, width, height, device):
+    def __init__(self, width, height, device, num_plates=10):
         self.width = width
         self.height = height
         self.device = device
+        self.num_plates = num_plates
 
     def apply_geological_features(self, world, progress_callback=None):
+        if progress_callback:
+            progress_callback(25.0, "Detecting plate boundaries")
+
+        boundaries = self.detect_plate_boundaries(world)
+        
+        if progress_callback:
+            progress_callback(30.0, "Assigning plates")
+
+        plates = self.assign_plates(boundaries)
+
+        if progress_callback:
+            progress_callback(35.0, "Simulating tectonic plate movements")
+
+        world = self.simulate_tectonic_plates(world, plates, progress_callback)
+        
+        if progress_callback:
+            progress_callback(50.0, "Adding eroded features")
+
         world = self.add_eroded_features(world, progress_callback)
         return world
+
+    def detect_plate_boundaries(self, world):
+        world_np = world.cpu().numpy()
+        sobel_x = sobel(world_np, axis=0)
+        sobel_y = sobel(world_np, axis=1)
+        magnitude = np.hypot(sobel_x, sobel_y)
+        boundaries = (magnitude > magnitude.mean()).astype(np.float32)
+        return torch.tensor(boundaries, device=self.device)
+
+    def assign_plates(self, boundaries):
+        boundaries_np = boundaries.cpu().numpy()
+        labeled_boundaries, num_features = self.label_boundaries(boundaries_np)
+        return torch.tensor(labeled_boundaries, dtype=torch.int32, device=self.device), num_features
+
+    def label_boundaries(self, boundaries):
+        from scipy.ndimage import label
+        labeled_array, num_features = label(boundaries == 0)
+        return labeled_array, num_features
+
+    def simulate_tectonic_plates(self, world, plates, progress_callback=None):
+        plate_ids, num_plates = plates
+        velocities = [(random.uniform(-0.1, 0.1), random.uniform(-0.1, 0.1)) for _ in range(num_plates)]
+
+        for step in range(10):
+            for plate_id in range(1, num_plates + 1):
+                velocity = velocities[plate_id - 1]
+                plate_mask = (plate_ids == plate_id).float()
+                world = self.tectonic_displacement(world, plate_mask, velocity)
+            if progress_callback:
+                progress_callback(35.0 + step * 1.5, f"Simulating tectonic movement step {step+1}")
+
+        return world
+
+    def tectonic_displacement(self, world, plate_mask, velocity):
+        x = torch.linspace(0, self.width - 1, self.width, device=self.device)
+        y = torch.linspace(0, self.height - 1, self.height, device=self.device)
+        x_grid, y_grid = torch.meshgrid(x, y)
+        
+        displacement = torch.exp(-((x_grid - x_grid.mean()) ** 2 + (y_grid - y_grid.mean()) ** 2) / (2 * (self.width / 10) ** 2))
+        displacement *= (velocity[0] + velocity[1])
+        return world + plate_mask * displacement
 
     def add_eroded_features(self, world, progress_callback=None):
         erosion_passes = 10
         for i in range(erosion_passes):
             world = self.erode_world(world)
             if progress_callback:
-                progress_callback(40 + i / erosion_passes * 30.0)  # Assuming erosion is 30% of the work.
+                progress_callback(50.0 + i * 1, f"Applying erosion pass {i+1}")
+
         return world
 
     def erode_world(self, world):
         eroded_world = world.clone()
-        world_reshaped = world.unsqueeze(0).unsqueeze(0)  # Shape: [1, 1, height, width]
+        world_reshaped = world.unsqueeze(0).unsqueeze(0)
         kernel = torch.tensor([
             [1, 1, 1],
             [1, -8, 1],
             [1, 1, 1]
         ], device=self.device, dtype=torch.float32)
-        
+
         neighbors = torch.nn.functional.conv2d(world_reshaped, kernel.view(1, 1, 3, 3), padding=1)
         neighbors = neighbors.squeeze(0).squeeze(0)
         eroded_world -= 0.01 * (neighbors > 0).float()
-        
+
         return eroded_world
 
 
@@ -167,7 +266,7 @@ class ErosionProcessor:
             water_level -= evaporation_rate * water_level
 
             if progress_callback:
-                progress_callback(70.0 + i / erosion_iterations * 30.0)
+                progress_callback(60.0 + i * 2, f"Applying hydraulic erosion iteration {i+1}")
 
         return world
 

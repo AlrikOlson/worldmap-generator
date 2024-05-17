@@ -291,6 +291,7 @@ class Game:
         self.continent_labeler = ContinentLabeler(self.world)
         self.world_renderer = WorldRenderer(self.world, self.screen)
         self.progress = 0
+        self.progress_text = ""
         self.generate_world()
 
         self.quit_button = Button(
@@ -305,6 +306,7 @@ class Game:
 
     def generate_world(self):
         self.progress = 0
+        self.progress_text = ""
         threading.Thread(target=self.run_map_generation).start()
 
     def run_map_generation(self):
@@ -313,8 +315,9 @@ class Game:
         self.continent_labeler.label_continents()
         self.world_renderer.update_world_surface()
 
-    def update_progress(self, progress):
+    def update_progress(self, progress, text=""):
         self.progress = progress
+        self.progress_text = text
 
     def run(self):
         while self.running:
@@ -344,7 +347,7 @@ class Game:
     def render_progress(self):
         if self.progress < 100:
             font = pygame.font.Font(None, QUIT_TEXT_SIZE)
-            text = font.render(f'Generating World: {self.progress:.1f}%', True, TEXT_COLOR)
+            text = font.render(f'{self.progress_text}: {self.progress:.1f}%', True, TEXT_COLOR)
             self.screen.blit(text, (PROGRESS_TEXT_X, PROGRESS_TEXT_Y))
 
     def quit_game(self):
