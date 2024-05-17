@@ -34,15 +34,15 @@ FPS = 60
 SHALLOW_DEEP_BLEND_FACTOR = 35.0  # You can adjust this value to control the smoothness
 
 # Threshold for land/sea
-LAND_SEA_THRESHOLD = 0.6
+LAND_SEA_THRESHOLD = 0.4
 
 # Percentiles for water
 DEEP_WATER_PERCENTILE = 0.0
 SHALLOW_WATER_PERCENTILE = 0.9
 
 # Percentiles for land regions
-GRASSLAND_PERCENTILE = 0.05
-FOREST_PERCENTILE = 0.9
+GRASSLAND_PERCENTILE = 0.25
+FOREST_PERCENTILE = 0.50
 MOUNTAIN_PERCENTILE = 0.99
 SNOW_PERCENTILE = 0.999
 
@@ -147,7 +147,7 @@ class WorldRenderer:
 
     def update_world_surface(self):
         try:
-            if self.world.data.shape != (self.world.width, self.world.height):
+            if self.world.data.shape[:2] != (self.world.width, self.world.height):
                 raise ValueError("Generated world shape does not match surface dimensions")
             world_np = self.world.data.cpu().numpy().astype(np.float32)  # Ensure data is float32
             color_array = self.generate_color_array(world_np)
@@ -358,4 +358,3 @@ class Game:
 
     def quit_game(self):
         self.running = False
-
