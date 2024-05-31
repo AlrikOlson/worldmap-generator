@@ -6,6 +6,7 @@
   - [Table of Contents](#table-of-contents)
   - [Overview](#overview)
   - [Features](#features)
+  - [Screenshot](#screenshot)
   - [Installation](#installation)
     - [Prerequisites](#prerequisites)
     - [Steps](#steps)
@@ -32,6 +33,10 @@ This project is a procedural world generator built using Python and Pygame, with
 - Ability to label and highlight continents.
 - Interactive buttons, including a "Quit" button.
 - Progress display during world generation.
+
+## Screenshot
+
+![Procedural World Generator Screenshot](docs/screenshots/ce58efa70343e96eec61b4b88bfac5a8.jpg)
 
 ## Installation
 
