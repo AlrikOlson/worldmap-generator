@@ -41,10 +41,10 @@ This project is a procedural world generator built using Python and Pygame, with
 
 ```sh
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/AlrikOlson/worldmap-generator
 
 # Navigate to the project directory
-cd <project-directory>
+cd worldmap-generator
 
 # Install the required dependencies
 pip install -r requirements.txt
