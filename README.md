@@ -10,6 +10,8 @@
     - [Prerequisites](#prerequisites)
     - [Steps](#steps)
   - [Usage](#usage)
+    - [Using Command Line](#using-command-line)
+    - [Using VS Code](#using-vs-code)
     - [Controls](#controls)
   - [Project Structure](#project-structure)
   - [Dependencies](#dependencies)
@@ -52,11 +54,25 @@ pip install -r requirements.txt
 
 ## Usage
 
+### Using Command Line
+
 Simply run the main script to start the procedural world generator.
 
 ```sh
 python src/main.py
 ```
+
+### Using VS Code
+
+1. **Open the Project**: Open the project folder in VS Code.
+
+2. **Install Extensions**:
+   - Install the Python extension for VS Code.
+  
+3. **Run the Project**:
+   - Open the Run and Debug side panel (using the play icon on the sidebar or `Ctrl+Shift+D`).
+   - Select the configuration "Python: Debug Map Generator".
+   - Click the green play button or press `F5` to start debugging.
 
 ### Controls
 
