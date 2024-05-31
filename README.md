@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project is a procedural world generator built using Python and Pygame, with heavy utilization of libraries such as NumPy, SciPy, and PyTorch. The application generates procedural worlds with labeled continents rendered with various terrain types such as deep water, shallow water, grasslands, forests, mountains, and snow.
+This project is a pet project procedural world generator built using Python and Pygame, with heavy utilization of libraries such as NumPy, SciPy, and PyTorch. The application generates procedural worlds with labeled continents rendered with various terrain types such as deep water, shallow water, grasslands, forests, mountains, and snow.
 
 ## Features
 
@@ -102,4 +102,4 @@ To adjust the colors of different terrain types, modify the color constants in t
 
 ## Disclaimer
 
-This project was heavily assisted by AI language models, specifically OpenAI's GPT-4 Omni and Claude 3 Opus by Anthropic. These models were utilized to generate significant portions of the codebase as well as the project documentation.
+This project is just a pet project of mine and is in no way something that should be used for real world projects. It was heavily assisted by AI language models, specifically OpenAI's GPT-4 Omni and Claude 3 Opus by Anthropic. These models were utilized to generate significant portions of the codebase as well as the project documentation.
