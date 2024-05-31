@@ -28,7 +28,7 @@ MAP_SCALE = 400.0
 MAP_OCTAVES = 48
 MIN_CONTINENT_SIZE = 5000
 AREA_CONVERSION_FACTOR = 0.386102
-KERNEL_SIZE = 3
+KERNEL_SIZE = 5  # Larger kernel size for smoother transitions
 FPS = 60
 
 SHALLOW_DEEP_BLEND_FACTOR = 35.0  # You can adjust this value to control the smoothness
