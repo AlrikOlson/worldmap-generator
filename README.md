@@ -1,26 +1,5 @@
 # Procedural World Generator
 
-## Table of Contents
-
-- [Procedural World Generator](#procedural-world-generator)
-  - [Table of Contents](#table-of-contents)
-  - [Overview](#overview)
-  - [Features](#features)
-  - [Screenshot](#screenshot)
-  - [Installation](#installation)
-    - [Prerequisites](#prerequisites)
-    - [Steps](#steps)
-  - [Usage](#usage)
-    - [Using Command Line](#using-command-line)
-    - [Using VS Code](#using-vs-code)
-    - [Controls](#controls)
-  - [Project Structure](#project-structure)
-  - [Dependencies](#dependencies)
-  - [Customization](#customization)
-    - [Adjusting Map Generation Parameters](#adjusting-map-generation-parameters)
-    - [Changing Colors](#changing-colors)
-  - [Disclaimer](#disclaimer)
-
 ## Overview
 
 This project is a procedural world generator built using Python and Pygame, with heavy utilization of libraries such as NumPy, SciPy, and PyTorch. The application generates procedural worlds with labeled continents rendered with various terrain types such as deep water, shallow water, grasslands, forests, mountains, and snow.
