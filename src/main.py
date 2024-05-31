@@ -1,6 +1,5 @@
-# src/main.py
 import pygame
-from core.game import Game  # Relative import
+from core.game import Game
 
 
 def main():

@@ -1,5 +1,3 @@
-# src/utils/filter.py
-
 import torch
 
 class GaussianFilter:

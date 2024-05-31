@@ -1,5 +1,3 @@
-# src/utils/device_manager.py
-
 import torch
 
 

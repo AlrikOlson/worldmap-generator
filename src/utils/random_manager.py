@@ -1,5 +1,3 @@
-# src/utils/random_manager.py
-
 import random
 import torch
 
