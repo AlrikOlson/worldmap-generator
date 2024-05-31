@@ -1,8 +1,5 @@
 import torch
 import random
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy.ndimage import sobel
 
 
 class DeviceManager:

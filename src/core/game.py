@@ -2,10 +2,9 @@ import pygame
 import threading
 import numpy as np
 import torch
-from procedural.map_generator import MapGenerator
-from ui.button import Button
+from src.procedural.map_generator import MapGenerator
+from src.ui.button import Button
 import random
-from scipy.ndimage import measurements
 
 # Constants
 BUTTON_WIDTH = 100
@@ -65,6 +64,7 @@ WORLD_REGION_COLORS = [
     SNOW_COLOR
 ]
 
+
 class World:
     def __init__(self, width, height):
         self.width = width
@@ -82,6 +82,7 @@ class World:
     def update_continent_names(self, names):
         self.continent_names = names
 
+
 class WorldGenerator:
     def __init__(self, width, height, scale, octaves):
         self.width = width
@@ -91,6 +92,7 @@ class WorldGenerator:
     def generate(self, progress_callback):
         world_data = self.map_gen.generate(progress_callback).to(torch.float32)
         return world_data
+
 
 class ContinentLabeler:
     def __init__(self, world):
@@ -137,6 +139,7 @@ class ContinentLabeler:
             return center_x, center_y
         else:
             return None
+
 
 class WorldRenderer:
     def __init__(self, world, screen):
@@ -197,7 +200,9 @@ class WorldRenderer:
 
         def smooth_elevation(elevations, kernel_size=KERNEL_SIZE):
             padding = kernel_size // 2
-            padded_elevations = torch.nn.functional.pad(elevations.unsqueeze(0).unsqueeze(0), (padding, padding, padding, padding), mode='replicate').squeeze()
+            padded_elevations = torch.nn.functional.pad(elevations.unsqueeze(0).unsqueeze(0),
+                                                        (padding, padding, padding, padding),
+                                                        mode='replicate').squeeze()
             kernel = torch.ones((1, 1, kernel_size, kernel_size), device=device) / (kernel_size * kernel_size)
             smoothed = torch.nn.functional.conv2d(padded_elevations.unsqueeze(0).unsqueeze(0), kernel).squeeze()
             return smoothed
@@ -224,7 +229,7 @@ class WorldRenderer:
 
         color_array = color_array.cpu().numpy()
         return color_array
-    
+
     def render(self):
         self.screen.fill(BACKGROUND_COLOR)
         if self.world.data is not None:
@@ -285,6 +290,7 @@ class WorldRenderer:
 
             self.screen.blit(highlight_surface, (0, 0))
 
+
 class Game:
     def __init__(self, screen, map_width, map_height):
         self.screen = screen
@@ -301,7 +307,8 @@ class Game:
         self.generate_world()
 
         self.quit_button = Button(
-            rect=(map_width - BUTTON_WIDTH - BUTTON_MARGIN, map_height - BUTTON_HEIGHT - BUTTON_MARGIN, BUTTON_WIDTH, BUTTON_HEIGHT),
+            rect=(map_width - BUTTON_WIDTH - BUTTON_MARGIN, map_height - BUTTON_HEIGHT - BUTTON_MARGIN, BUTTON_WIDTH,
+                  BUTTON_HEIGHT),
             color=QUIT_BUTTON_COLOR,
             hover_color=QUIT_BUTTON_HOVER_COLOR,
             text='Quit',
