@@ -12,7 +12,7 @@ This project is a procedural world generator built using Python and Pygame, with
 
 ## Roadmap
 
-- 🏗️ More geologically-accurate terrain generation.
+- Better approximation for geological processes in terrain generation. 
 
 ## 📸 Screenshot
 
