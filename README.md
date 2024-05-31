@@ -18,6 +18,7 @@
   - [Customization](#customization)
     - [Adjusting Map Generation Parameters](#adjusting-map-generation-parameters)
     - [Changing Colors](#changing-colors)
+  - [Disclaimer](#disclaimer)
 
 ## Overview
 
@@ -149,3 +150,7 @@ You can customize various parameters in the procedural generation logic:
 ### Changing Colors
 
 To adjust the colors of different terrain types, modify the color constants in the world renderer.
+
+## Disclaimer
+
+This project was heavily assisted by AI language models, specifically OpenAI's GPT-4 Omni and Claude 3 Opus by Anthropic. These models were utilized to generate significant portions of the codebase as well as the project documentation.
