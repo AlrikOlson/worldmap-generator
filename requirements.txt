@@ -4,4 +4,4 @@ torch
 scipy
 matplotlib
 PyOpenGL
-pyobjc
+pyobjc; sys_platform == 'darwin'

@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.ndimage import sobel
 
+
 class DeviceManager:
     @staticmethod
     def get_device():
@@ -14,11 +15,13 @@ class DeviceManager:
         else:
             return torch.device('cpu')
 
+
 class RandomManager:
     @staticmethod
     def set_seed(seed):
         random.seed(seed)
         torch.manual_seed(seed)
+
 
 class ProgressCallback:
     @staticmethod
@@ -26,21 +29,25 @@ class ProgressCallback:
         if progress_callback:
             progress_callback(percentage, message)
 
+
 class GaussianFilter:
     @staticmethod
     def apply(world, device, kernel_size=10, sigma=1.7):
-        kernel = torch.tensor(GaussianFilter.gaussian_kernel(kernel_size, sigma), device=device, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+        kernel = torch.from_numpy(GaussianFilter.gaussian_kernel(kernel_size, sigma)).to(device=device,
+                                                                                         dtype=torch.float32).unsqueeze(
+            0).unsqueeze(0)
         world = world.unsqueeze(0).unsqueeze(0)
         world = torch.nn.functional.conv2d(world, kernel, padding=kernel_size // 2)
         return world.squeeze(0).squeeze(0)
-    
+
     @staticmethod
     def gaussian_kernel(size, sigma):
         kx = torch.arange(size, dtype=torch.float32) - size // 2
         kx = torch.exp(-0.5 * (kx / sigma) ** 2)
         kernel = kx.unsqueeze(1) * kx.unsqueeze(0)
         kernel /= kernel.sum()
-        return kernel
+        return kernel.numpy()
+
 
 class MapGenerator:
     def __init__(self, width, height, scale=100.0, octaves=6, persistence=0.5, lacunarity=2.0, seed=None):
@@ -83,6 +90,7 @@ class MapGenerator:
 
         return world
 
+
 class PerlinNoiseGenerator:
     def __init__(self, width, height, scale, octaves, persistence, lacunarity, device):
         self.width = width
@@ -104,9 +112,10 @@ class PerlinNoiseGenerator:
             x_offset = random.uniform(0, 1000)
             y_offset = random.uniform(0, 1000)
             x = (torch.linspace(0, self.width - 1, self.width, device=self.device) / self.scale * frequency) + x_offset
-            y = (torch.linspace(0, self.height - 1, self.height, device=self.device) / self.scale * frequency) + y_offset
+            y = (torch.linspace(0, self.height - 1, self.height,
+                                device=self.device) / self.scale * frequency) + y_offset
 
-            x_grid, y_grid = torch.meshgrid(x, y)
+            x_grid, y_grid = torch.meshgrid(x, y, indexing='ij')
             noise += amplitude * self.perlin(x_grid, y_grid)
 
             max_value += amplitude
@@ -142,6 +151,7 @@ class PerlinNoiseGenerator:
         random = torch.sin(x * 12.9898 + y * 78.233) * 43758.5453123
         return random.frac() * 2 - 1
 
+
 class GeologicalProcessor:
     def __init__(self, width, height, device, num_plates=10):
         self.width = width
@@ -174,6 +184,7 @@ class GeologicalProcessor:
         world -= 0.01 * (neighbors > 0).float()
 
         return world
+
 
 class ErosionProcessor:
     def __init__(self, width, height, device):
@@ -209,7 +220,8 @@ class ErosionProcessor:
             [0, 1, 0]
         ], device=self.device, dtype=torch.float32)
 
-        water_flow = torch.nn.functional.conv2d(world.unsqueeze(0).unsqueeze(0), kernel.unsqueeze(0).unsqueeze(0), padding=1)
+        water_flow = torch.nn.functional.conv2d(world.unsqueeze(0).unsqueeze(0), kernel.unsqueeze(0).unsqueeze(0),
+                                                padding=1)
         water_flow = water_flow.squeeze(0).squeeze(0)
         water_flow *= water_level
 
@@ -219,4 +231,3 @@ class ErosionProcessor:
     def calculate_velocity(water_flow):
         velocity = torch.sqrt(water_flow[:-1, :-1] ** 2 + water_flow[:-1, 1:] ** 2)
         return torch.nn.functional.pad(velocity, (0, 1, 0, 1), mode='constant', value=0)
-
