@@ -1,9 +1,6 @@
-# src/core/continent_labeler.py
-
 import numpy as np
 import random
 
-# Constants needed from game.py
 LAND_SEA_THRESHOLD = 0.4
 MIN_CONTINENT_SIZE = 5000
 AREA_CONVERSION_FACTOR = 0.386102

@@ -1,5 +1,3 @@
-# src/core/world_generator.py
-
 from src.procedural.map_generator import MapGenerator
 import torch
 

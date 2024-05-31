@@ -1,5 +1,3 @@
-# src/procedural/geological.py
-
 import torch
 
 class GeologicalProcessor:

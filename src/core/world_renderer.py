@@ -1,11 +1,8 @@
-# src/core/world_renderer.py
-
 import pygame
 import torch
 import numpy as np
 from src.utils.device_manager import DeviceManager
 
-# Constants needed from game.py
 LAND_SEA_THRESHOLD = 0.4
 KERNEL_SIZE = 5
 SHALLOW_DEEP_BLEND_FACTOR = 35.0

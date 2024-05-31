@@ -1,13 +1,10 @@
 import pygame
 import threading
-import numpy as np
-import torch
 from src.ui.button import Button
 from src.core.world import World
 from src.core.world_generator import WorldGenerator
 from src.core.world_renderer import WorldRenderer
 from src.core.continent_labeler import ContinentLabeler
-import random
 
 # Constants
 BUTTON_WIDTH = 100

@@ -1,4 +1,3 @@
-import torch
 import random
 from src.utils.device_manager import DeviceManager
 from src.utils.random_manager import RandomManager

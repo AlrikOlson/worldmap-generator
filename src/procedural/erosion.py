@@ -1,5 +1,3 @@
-# src/procedural/erosion.py
-
 import torch
 
 class ErosionProcessor:

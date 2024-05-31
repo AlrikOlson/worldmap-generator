@@ -1,5 +1,3 @@
-# src/procedural/perlin_noise.py
-
 import torch
 import random
 
