@@ -60,7 +60,6 @@ python src/main.py
 ### Controls
 
 - **Spacebar**: Generate a new random world.
-- **Quit Button**: Click to exit the application.
 
 ## Project Structure
 
@@ -70,41 +69,6 @@ The project is organized into several packages:
 - **procedural**: Contains modules for generating procedural terrain using Perlin noise, and applying geological and erosion processes.
 - **ui**: Contains UI components like buttons.
 - **utils**: Contains utility classes for device management, random seed management, and progress updates.
-
-Here's an overview of notable files and directories:
-
-```
-project-directory/
-│
-├── src/
-│   ├── core/
-│   │   ├── game.py                # Main game loop and event handling
-│   │   ├── world.py               # World data structure
-│   │   ├── world_generator.py     # World generation logic
-│   │   ├── world_renderer.py      # Renders the world using Pygame
-│   │   └── continent_labeler.py   # Labels continents in the world
-│   │
-│   ├── procedural/
-│   │   ├── erosion.py             # Applies hydraulic erosion to the world
-│   │   ├── geological.py          # Adds geological features to the world
-│   │   ├── map_generator.py       # Main procedural generation pipeline
-│   │   └── perlin_noise.py        # Generates Perlin noise for terrain
-│   │
-│   ├── ui/
-│   │   └── button.py              # Button UI element
-│   │
-│   ├── utils/
-│   │   ├── device_manager.py      # Manages computing devices (CPU/GPU)
-│   │   ├── filter.py              # Applies Gaussian filter to smooth terrain
-│   │   ├── progress_callback.py   # Utility for progress updates
-│   │   └── random_manager.py      # Manages random seed for reproducibility
-│   │
-│   ├── main.py                    # Program entry point
-│   ├── __init__.py                
-│
-├── requirements.txt               # Project dependencies
-└── README.md                      # Project documentation
-```
 
 ## Dependencies
 
