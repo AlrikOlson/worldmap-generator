@@ -1,4 +1,4 @@
-# Procedural World Generator
+# 🌍 Procedural World Generator
 
 ## Overview
 
@@ -8,10 +8,13 @@ This project is a procedural world generator built using Python and Pygame, with
 
 - Procedural generation of world maps using Perlin noise.
 - Rendering using Pygame.
-- [WIP] Inclusion of geological and hydraulic erosion processes.
-- [WIP] Ability to label and highlight continents.
+- Ability to label and highlight continents.
 
-## Screenshot
+## Roadmap
+
+- 🏗️ More geologically-accurate terrain generation.
+
+## 📸 Screenshot
 
 ![Procedural World Generator Screenshot](docs/screenshots/ce58efa70343e96eec61b4b88bfac5a8.jpg)
 
@@ -19,8 +22,8 @@ This project is a procedural world generator built using Python and Pygame, with
 
 ### Prerequisites
 
-- Python 3.7+
-- PIP (Python package installer)
+- 🐍 Python 3.7+
+- 📦 PIP (Python package installer)
 
 ### Steps
 
@@ -59,7 +62,7 @@ python src/main.py
 
 ### Controls
 
-- **Spacebar**: Generate a new random world.
+- **🔄 Spacebar**: Generate a new random world.
 
 ## Project Structure
 
@@ -93,7 +96,7 @@ You can customize various parameters in the procedural generation logic:
 - **persistence** and **lacunarity**: Modify the amplitude and frequency of octaves.
 - **erosion settings**: Located in the erosion and geological modules.
 
-### Changing Colors
+### 🎨 Changing Colors
 
 To adjust the colors of different terrain types, modify the color constants in the world renderer.
 
