@@ -27,7 +27,7 @@ This project is a procedural world generator built using Python and Pygame, with
 
 - Procedural generation of world maps using Perlin noise.
 - Inclusion of geological and hydraulic erosion processes.
-- Real-time rendering using Pygame.
+- Rendering using Pygame.
 - Ability to label and highlight continents.
 - Interactive buttons, including a "Quit" button.
 - Progress display during world generation.
