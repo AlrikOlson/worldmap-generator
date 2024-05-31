@@ -1,0 +1,7 @@
+pygame
+numpy
+torch
+scipy
+matplotlib
+PyOpenGL
+pyobjc; sys_platform == 'darwin'
