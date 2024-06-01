@@ -85,21 +85,6 @@ Install all dependencies using:
 pip install -r requirements.txt
 ```
 
-## Customization
-
-### Adjusting Map Generation Parameters
-
-You can customize various parameters in the procedural generation logic:
-
-- **scale**: Affects the zoom level of the noise map.
-- **octaves**: Controls the number of layers of Perlin noise.
-- **persistence** and **lacunarity**: Modify the amplitude and frequency of octaves.
-- **erosion settings**: Located in the erosion and geological modules.
-
-### 🎨 Changing Colors
-
-To adjust the colors of different terrain types, modify the color constants in the world renderer.
-
 ## Disclaimer
 
 This project is just a pet project of mine and is in no way something that should be used for real world projects. It was heavily assisted by AI language models, specifically OpenAI's GPT-4 Omni and Claude 3 Opus by Anthropic. These models were utilized to generate significant portions of the codebase as well as the project documentation.
